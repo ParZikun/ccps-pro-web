@@ -1,5 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async rewrites() {
+    return [
+      {
+        // When your frontend asks for anything starting with /api/backend/
+        source: '/api/backend/:path*', 
+        
+        // Vercel's server will secretly fetch it from your Azure VM over HTTP
+        destination: 'http://YOUR_AZURE_VM_IP:3001/:path*', 
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'store.collectorcrypt.com' },
@@ -15,11 +26,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.cloudfront.net' },
     ],
     dangerouslyAllowSVG: true,
-  },
-  env: {
-    API_URL: process.env.API_URL,
-    API_KEY: process.env.API_KEY,
-  },
+  }
 }
 
 module.exports = nextConfig
