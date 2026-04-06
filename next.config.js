@@ -4,10 +4,10 @@ const nextConfig = {
     return [
       {
         // When your frontend asks for anything starting with /api/backend/
-        source: '/api/backend/:path*', 
-        
+        source: '/api/backend/:path*',
+
         // Vercel's server will secretly fetch it from your Azure VM over HTTP
-        destination: `${process.env.AZURE_BACKEND_URL}/:path*`, 
+        destination: `${process.env.AZURE_BACKEND_URL}/:path*`,
       },
     ]
   },

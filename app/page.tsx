@@ -109,9 +109,9 @@ export default function HomePage() {
             Deal Breakdown by Tier
           </h3>
           <div className="space-y-3">
-            {Object.entries(analytics.dealsByTier)
+            {Object.entries(analytics.dealsByTier as Record<string, number>)
               .filter(([tier]) => tier !== Tier.NONE && tier !== Tier.AUTOBUY)
-              .sort(([, a], [, b]) => (b as number) - (a as number))
+              .sort(([, a], [, b]) => b - a)
               .map(([tier, count]) => {
                 const color = getTierColor(tier)
                 const pct = analytics.activeDealsCount > 0 ? (count / analytics.activeDealsCount * 100) : 0
@@ -152,7 +152,7 @@ export default function HomePage() {
             <span className="text-[10px] text-gray-500 font-normal ml-auto">Last 24 hours</span>
           </h3>
           <div className="flex items-end gap-1 h-32">
-            {analytics.scanVelocity.map((count, i) => {
+            {analytics.scanVelocity.map((count: number, i: number) => {
               const height = maxVelocity > 0 ? (count / maxVelocity * 100) : 0
               const hour = (new Date().getHours() - 23 + i + 24) % 24
               return (
@@ -173,8 +173,8 @@ export default function HomePage() {
             })}
           </div>
           <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500">
-            <span>Total: {analytics.scanVelocity.reduce((a, b) => a + b, 0)} listings</span>
-            <span>Avg: {(analytics.scanVelocity.reduce((a, b) => a + b, 0) / 24).toFixed(1)}/hr</span>
+            <span>Total: {analytics.scanVelocity.reduce((a: number, b: number) => a + b, 0)} listings</span>
+            <span>Avg: {(analytics.scanVelocity.reduce((a: number, b: number) => a + b, 0) / 24).toFixed(1)}/hr</span>
           </div>
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="space-y-2">
-            {analytics.topDeals.map((deal, i) => {
+            {analytics.topDeals.map((deal: any, i: number) => {
               const discount = deal.alt_value ? ((deal.alt_value - deal.listing_price_usd) / deal.alt_value * 100) : 0
               const tierColor = getTierColor(deal.tier)
               return (
@@ -224,7 +224,7 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="space-y-1.5">
-            {analytics.recentActivity.map((event, i) => (
+            {analytics.recentActivity.map((event: any, i: number) => (
               <div key={i} className="flex items-center gap-3 py-2 px-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
                 <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                   event.type === 'DEAL' ? 'bg-green-400' :

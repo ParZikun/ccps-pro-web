@@ -5,8 +5,18 @@ import { Target, ExternalLink } from 'lucide-react'
 import { truncate, timeAgo } from '@/lib/format'
 import Image from 'next/image'
 
+interface CompetitorEvent {
+  wallet: string
+  action: string
+  mint: string
+  priceStr: string
+  signature: string
+  timestamp: number
+  meta: any
+}
+
 export default function CompetitorsPage() {
-  const [competitors, setCompetitors] = useState<any[]>([])
+  const [competitors, setCompetitors] = useState<CompetitorEvent[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
