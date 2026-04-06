@@ -111,7 +111,7 @@ export default function HomePage() {
           <div className="space-y-3">
             {Object.entries(analytics.dealsByTier)
               .filter(([tier]) => tier !== Tier.NONE && tier !== Tier.AUTOBUY)
-              .sort(([, a], [, b]) => b - a)
+              .sort(([, a], [, b]) => (b as number) - (a as number))
               .map(([tier, count]) => {
                 const color = getTierColor(tier)
                 const pct = analytics.activeDealsCount > 0 ? (count / analytics.activeDealsCount * 100) : 0
