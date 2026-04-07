@@ -11,7 +11,7 @@ export default function Navbar() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
         const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(5000) })
         if (res.ok) {
           setHealthStatus('healthy')
@@ -61,14 +61,13 @@ export default function Navbar() {
               {healthStatus === 'unknown' && (
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
               )}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${
-                healthStatus === 'healthy' ? 'bg-green-500' :
-                healthStatus === 'unknown' ? 'bg-yellow-500' : 'bg-red-500'
-              }`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${healthStatus === 'healthy' ? 'bg-green-500' :
+                  healthStatus === 'unknown' ? 'bg-yellow-500' : 'bg-red-500'
+                }`} />
             </span>
             <span className="text-[11px] font-medium text-gray-400 hidden sm:block font-mono">
               {healthStatus === 'healthy' ? 'Backend Online' :
-               healthStatus === 'unknown' ? 'Connecting...' : 'Offline'}
+                healthStatus === 'unknown' ? 'Connecting...' : 'Offline'}
             </span>
           </div>
 

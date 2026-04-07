@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 const getApiUrl = (slug: string, search: string): string => {
-  const baseUrl = process.env.AZURE_BACKEND_URL || 'http://localhost:3000'
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3000'
   return `${baseUrl}/api/${slug}${search}`
 }
 

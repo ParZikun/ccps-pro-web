@@ -7,7 +7,7 @@ const nextConfig = {
         source: '/api/backend/:path*',
 
         // Vercel's server will secretly fetch it from your Azure VM over HTTP
-        destination: `${process.env.AZURE_BACKEND_URL}/:path*`,
+        destination: `${process.env.NEXT_PUBLIC_API_URL || process.env.API_URL}/:path*`,
       },
     ]
   },
