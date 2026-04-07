@@ -11,8 +11,8 @@ export default function Navbar() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
-        const API_URL = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-        const res = await fetch(`${API_URL}/health`, { signal: AbortSignal.timeout(5000) })
+        // Always hit the relative Next.js proxy, which securely handles the server env variables
+        const res = await fetch(`/api/health`, { signal: AbortSignal.timeout(5000) })
         if (res.ok) {
           setHealthStatus('healthy')
         } else {
