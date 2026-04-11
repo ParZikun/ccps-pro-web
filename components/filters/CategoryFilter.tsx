@@ -13,6 +13,7 @@ const categories = [
   { label: '🥈 Silver', value: Tier.SILVER, color: 'text-gray-300', activeBg: 'bg-gray-400/10 border-gray-400/30' },
   { label: '🥉 Bronze', value: Tier.BRONZE, color: 'text-amber-600', activeBg: 'bg-amber-600/10 border-amber-600/30' },
   { label: '⚙️ Iron', value: Tier.IRON, color: 'text-gray-400', activeBg: 'bg-gray-500/10 border-gray-500/30' },
+  { label: 'ℹ️ Info', value: 'NONE', color: 'text-blue-400', activeBg: 'bg-blue-500/10 border-blue-500/30' },
 ]
 
 export default function CategoryFilter({ selected, onChange }: CategoryFilterProps) {

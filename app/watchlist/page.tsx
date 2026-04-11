@@ -6,6 +6,8 @@ import { formatUsd, getConfidenceColor, timeAgo, truncate } from '@/lib/format'
 import type { WatchlistItem } from '@/types'
 import { useEffect } from 'react'
 import Image from 'next/image'
+import Sparkline from '@/components/ui/Sparkline'
+import CardDetailPanel from '@/components/panels/CardDetailPanel'
 
 export default function WatchlistPage() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([])
@@ -131,10 +133,13 @@ export default function WatchlistPage() {
             <tbody>
               {filteredList.map((item) => {
                 const confColor = getConfidenceColor(item.alt_confidence)
-                // Calculate 30d change from price history
-                const priceHistory = item.price_history || []
-                const firstPrice = priceHistory[0]?.alt_value || item.alt_value || 0
-                const lastPrice = priceHistory[priceHistory.length - 1]?.alt_value || item.alt_value || 0
+                // Calculate 30d change from recent sales (or fallback to alt_value)
+                const sales = item.recent_sales && item.recent_sales.length > 0
+                  ? item.recent_sales.map(s => s.price).reverse()
+                  : [item.alt_value || 0]
+
+                const firstPrice = sales[0] || 0
+                const lastPrice = sales[sales.length - 1] || 0
                 const changeAmt = lastPrice - firstPrice
                 const changePct = firstPrice > 0 ? (changeAmt / firstPrice * 100) : 0
                 const isUp = changePct >= 0
@@ -173,22 +178,7 @@ export default function WatchlistPage() {
                     {/* Sparkline + Change */}
                     <td className="px-4 py-3">
                       <div className="flex flex-col items-center gap-1">
-                        {/* Mini sparkline */}
-                        <div className="flex items-end gap-[1px] h-5">
-                          {priceHistory.slice(-14).map((point: any, i: number) => {
-                            const min = Math.min(...priceHistory.slice(-14).map((p: any) => p.alt_value))
-                            const max = Math.max(...priceHistory.slice(-14).map((p: any) => p.alt_value))
-                            const range = max - min || 1
-                            const height = ((point.alt_value - min) / range) * 100
-                            return (
-                              <div
-                                key={i}
-                                className={`w-1 rounded-full ${isUp ? 'bg-green-500/60' : 'bg-red-500/60'}`}
-                                style={{ height: `${Math.max(height, 8)}%` }}
-                              />
-                            )
-                          })}
-                        </div>
+                        <Sparkline data={sales} width={60} height={16} />
                         <span className={`text-[10px] font-bold font-mono flex items-center gap-0.5 ${isUp ? 'text-green-400' : 'text-red-400'}`}>
                           {isUp ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
                           {isUp ? '+' : ''}{changePct.toFixed(1)}%
@@ -249,111 +239,13 @@ export default function WatchlistPage() {
       </div>
 
       {/* Detail Panel */}
-      {selectedItem && (
-        <>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]" onClick={() => setSelectedItem(null)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-lg z-[80] glass border-l border-yellow-500/10 overflow-y-auto animate-slideInRight custom-scrollbar">
-            <div className="p-6 space-y-6">
-              {/* Header */}
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                    <span className="text-[10px] text-yellow-400 font-bold uppercase tracking-wider">Watching</span>
-                  </div>
-                  <h2 className="text-lg font-bold text-white">{selectedItem.name}</h2>
-                  <p className="text-xs text-gray-500 font-mono">{selectedItem.grading_company} · {selectedItem.grade}</p>
-                </div>
-                <button onClick={() => setSelectedItem(null)} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg">
-                  <span className="text-lg">✕</span>
-                </button>
-              </div>
-
-              {/* Image */}
-              <div className="rounded-xl overflow-hidden bg-black/30 border border-white/5">
-                <Image src={selectedItem.img_url || ''} alt={selectedItem.name} width={400} height={560} className="w-full object-contain" />
-              </div>
-
-              {/* Price History Chart */}
-              {selectedItem.price_history && selectedItem.price_history.length > 0 && (
-                <div className="p-4 rounded-xl bg-black/20 border border-white/5">
-                  <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-2">
-                    <BarChart3 className="w-3.5 h-3.5 text-yellow-400" />
-                    30-Day Price History
-                  </h3>
-                  <div className="flex items-end gap-[2px] h-28">
-                    {selectedItem.price_history.map((point, i) => {
-                      const min = Math.min(...selectedItem.price_history!.map(p => p.alt_value))
-                      const max = Math.max(...selectedItem.price_history!.map(p => p.alt_value))
-                      const range = max - min || 1
-                      const height = ((point.alt_value - min) / range) * 100
-                      const lastVal = selectedItem.price_history![selectedItem.price_history!.length - 1]?.alt_value || 0
-                      const firstVal = selectedItem.price_history![0]?.alt_value || 0
-                      const isUp = lastVal >= firstVal
-
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center justify-end h-full group relative">
-                          <div
-                            className={`w-full rounded-sm ${isUp ? 'bg-green-500/40 hover:bg-green-500/60' : 'bg-red-500/40 hover:bg-red-500/60'} transition-colors`}
-                            style={{ height: `${Math.max(height, 3)}%` }}
-                          />
-                          <div className="absolute -top-10 left-1/2 -translate-x-1/2 hidden group-hover:block bg-black/90 px-2 py-1 rounded text-[9px] text-white font-mono whitespace-nowrap z-10 border border-white/10">
-                            {point.date}: {formatUsd(point.alt_value)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className="flex items-center justify-between mt-2 text-[10px] text-gray-500 font-mono">
-                    <span>{selectedItem.price_history[0].date}</span>
-                    <span>{selectedItem.price_history[selectedItem.price_history.length - 1].date}</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Metrics */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase font-semibold">Current Alt Value</p>
-                  <p className="text-lg font-bold text-accent-gold font-mono">{formatUsd(selectedItem.alt_value)}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase font-semibold">Max Buy Price</p>
-                  <p className="text-lg font-bold text-white font-mono">{formatUsd(selectedItem.max_buy_price)}</p>
-                </div>
-              </div>
-
-              {/* Recent Sales */}
-              {selectedItem.recent_sales && selectedItem.recent_sales.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Recent Sales</p>
-                  <div className="space-y-1">
-                    {selectedItem.recent_sales.map((sale, i) => (
-                      <div key={i} className="flex justify-between py-1.5 px-3 rounded bg-black/10 border border-white/[0.03] text-xs">
-                        <span className="text-gray-500 font-mono">{sale.date}</span>
-                        <span className="text-white font-mono">{formatUsd(sale.price)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Links */}
-              <div className="flex gap-2">
-                <a href={`https://magiceden.io/item-details/${selectedItem.token_mint}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-colors">
-                  <ExternalLink className="w-3 h-3" /> Magic Eden
-                </a>
-                <button
-                  onClick={() => removeFromWatchlist(selectedItem.token_mint)}
-                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-medium hover:bg-red-500/20 transition-colors"
-                >
-                  <Trash2 className="w-3 h-3" /> Remove
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
+      <CardDetailPanel 
+        card={selectedItem}
+        onClose={() => setSelectedItem(null)}
+        onRemove={() => {
+          if (selectedItem) removeFromWatchlist(selectedItem.token_mint)
+        }}
+      />
     </div>
   )
 }

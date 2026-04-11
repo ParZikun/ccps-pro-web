@@ -40,6 +40,9 @@ export function getTierColor(tier: string): ColorScheme {
       return { text: 'text-gray-400', border: 'border-gray-500/30', bg: 'bg-gray-500/10' }
     case 'SUSPICIOUS':
       return { text: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-500/10' }
+    case 'NONE':
+    case 'INFO':
+      return { text: 'text-blue-400', border: 'border-blue-500/30', bg: 'bg-blue-500/10' }
     default:
       return { text: 'text-gray-500', border: 'border-white/10', bg: 'bg-white/5' }
   }

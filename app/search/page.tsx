@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { Search as SearchIcon, Loader, AlertCircle, ExternalLink, Shield, BarChart3, Star, TrendingDown } from 'lucide-react'
 import Image from 'next/image'
 import { formatUsd, getConfidenceColor, truncate } from '@/lib/format'
+import Sparkline from '@/components/ui/Sparkline'
+import CardDetailPanel from '@/components/panels/CardDetailPanel'
+import { useEffect } from 'react'
 import type { RedisACard } from '@/types'
 
 export default function SearchPage() {
@@ -14,6 +17,22 @@ export default function SearchPage() {
   const [selectedCard, setSelectedCard] = useState<RedisACard | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
   const [watchingMints, setWatchingMints] = useState<Set<string>>(new Set())
+  const [totalTracked, setTotalTracked] = useState<number | null>(null)
+
+  // Filters
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
+  const [gradingCompany, setGradingCompany] = useState('ALL')
+
+  useEffect(() => {
+    // Fetch EDA stats once
+    fetch('/api/analytics/dashboard')
+      .then(r => r.json())
+      .then(d => {
+        if (d.totalCardsTracked) setTotalTracked(d.totalCardsTracked)
+      })
+      .catch(() => {})
+  }, [])
 
   const toggleWatchlist = async (mint: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -64,12 +83,31 @@ export default function SearchPage() {
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Card Search</h1>
           <p className="text-sm text-gray-400">
-            Search all cards securely from Redis A
+            {totalTracked ? `Searching ${totalTracked.toLocaleString()} cards in Redis A` : 'Search all cards securely from Redis A'}
             <span className="text-[10px] text-green-500 font-mono bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 ml-3">
               Live Data
             </span>
           </p>
         </div>
+      </div>
+
+      {/* Advanced Filters */}
+      <div className="flex items-center gap-3 flex-wrap p-3 bg-surface border border-white/5 rounded-xl">
+        <span className="text-xs font-bold text-gray-500 uppercase">Filters:</span>
+        <div className="flex items-center gap-2">
+          <input type="number" placeholder="Min USD" value={minPrice} onChange={e => setMinPrice(e.target.value)} className="w-24 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/30" />
+          <span className="text-gray-600">-</span>
+          <input type="number" placeholder="Max USD" value={maxPrice} onChange={e => setMaxPrice(e.target.value)} className="w-24 bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-purple-500/30" />
+        </div>
+        <select value={gradingCompany} onChange={e => setGradingCompany(e.target.value)} className="bg-black/30 border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-purple-500/30">
+          <option value="ALL">All Companies</option>
+          <option value="PSA">PSA</option>
+          <option value="BGS">Beckett (BGS)</option>
+          <option value="CGC">CGC</option>
+        </select>
+        {(minPrice || maxPrice || gradingCompany !== 'ALL') && (
+          <button onClick={() => { setMinPrice(''); setMaxPrice(''); setGradingCompany('ALL'); }} className="text-[10px] text-gray-500 hover:text-white transition-colors">Clear</button>
+        )}
       </div>
 
       {/* Search Bar */}
@@ -104,15 +142,30 @@ export default function SearchPage() {
             Found <span className="text-purple-400 font-bold">{results.length}</span> results for &ldquo;<span className="text-white">{searchedQuery}</span>&rdquo;
           </p>
 
-          {results.length === 0 ? (
-            <div className="rounded-xl bg-surface border border-white/5 p-12 text-center">
-              <AlertCircle className="w-10 h-10 text-gray-700 mx-auto mb-3" />
-              <p className="text-gray-500">No cards found matching your search.</p>
-              <p className="text-[10px] text-gray-600 mt-1">Try a different name, mint, or grading ID</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {results.map((card) => {
+          {(() => {
+            const minV = parseFloat(minPrice) || 0
+            const maxV = parseFloat(maxPrice) || Infinity
+            
+            const filteredResults = results.filter(card => {
+              const val = card.alt_value || 0
+              if (val < minV || val > maxV) return false
+              if (gradingCompany !== 'ALL' && !card.grading_company?.toUpperCase().includes(gradingCompany)) return false
+              return true
+            })
+
+            if (filteredResults.length === 0) {
+              return (
+                <div className="rounded-xl bg-surface border border-white/5 p-12 text-center">
+                  <AlertCircle className="w-10 h-10 text-gray-700 mx-auto mb-3" />
+                  <p className="text-gray-500">No cards found matching your search and filters.</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Try a different name or clear filters.</p>
+                </div>
+              )
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredResults.map((card) => {
                 const confColor = getConfidenceColor(card.alt_confidence)
                 return (
                   <div
@@ -165,7 +218,8 @@ export default function SearchPage() {
                 )
               })}
             </div>
-          )}
+            )
+          })()}
         </div>
       )}
 
@@ -180,81 +234,13 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Card Detail Modal */}
-      {selectedCard && (
-        <>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]" onClick={() => setSelectedCard(null)} />
-          <div className="fixed top-0 right-0 h-full w-full max-w-md z-[80] glass border-l border-purple-500/10 overflow-y-auto animate-slideInRight custom-scrollbar">
-            <div className="p-6 space-y-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="text-lg font-bold text-white">{selectedCard.name}</h2>
-                  <p className="text-xs text-gray-500 font-mono">{selectedCard.grading_company} · {selectedCard.grade} · #{selectedCard.grading_id}</p>
-                </div>
-                <button onClick={() => setSelectedCard(null)} className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg">
-                  <span className="text-lg">✕</span>
-                </button>
-              </div>
-
-              <div className="rounded-xl overflow-hidden bg-black/30 border border-white/5">
-                <Image src={selectedCard.img_url || 'https://placehold.co/400x560/13111a/333'} alt={selectedCard.name} width={400} height={560} className="w-full object-contain" />
-              </div>
-
-              {/* Metrics */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase font-semibold">Alt Value</p>
-                  <p className="text-xl font-bold text-accent-gold font-mono">{formatUsd(selectedCard.alt_value)}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/20 border border-white/5">
-                  <p className="text-[9px] text-gray-500 uppercase font-semibold">Insured</p>
-                  <p className="text-xl font-bold text-white font-mono">{formatUsd(selectedCard.insured_value)}</p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {[
-                  { label: 'Confidence', value: `${selectedCard.alt_confidence?.toFixed(1)}%`, icon: BarChart3 },
-                  { label: 'Range', value: `${formatUsd(selectedCard.alt_lower_bound)} — ${formatUsd(selectedCard.alt_upper_bound)}`, icon: TrendingDown },
-                  { label: 'Supply', value: selectedCard.supply.toString(), icon: Shield },
-                  { label: 'Cartel Avg', value: formatUsd(selectedCard.cartel_avg), icon: BarChart3 },
-                  { label: 'Max Buy Price', value: formatUsd(selectedCard.max_buy_price), icon: Star },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center justify-between py-2 px-3 rounded-lg bg-black/10 border border-white/[0.03]">
-                    <span className="flex items-center gap-2 text-xs text-gray-400"><row.icon className="w-3.5 h-3.5" />{row.label}</span>
-                    <span className="text-xs font-mono text-white">{row.value}</span>
-                  </div>
-                ))}
-              </div>
-
-              {selectedCard.recent_sales && selectedCard.recent_sales.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold mb-2">Recent Sales</p>
-                  <div className="space-y-1">
-                    {selectedCard.recent_sales.map((sale, i) => (
-                      <div key={i} className="flex justify-between py-1.5 px-3 rounded bg-black/10 border border-white/[0.03] text-xs">
-                        <span className="text-gray-500 font-mono">{sale.date}</span>
-                        <span className="text-white font-mono">{formatUsd(sale.price)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2 border-t border-white/5">
-                <a href={`https://magiceden.io/item-details/${selectedCard.token_mint}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium hover:bg-purple-500/20 transition-colors">
-                  <ExternalLink className="w-3 h-3" /> Magic Eden
-                </a>
-                <a href={`https://solscan.io/token/${selectedCard.token_mint}`} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-sky-500/10 border border-sky-500/20 text-sky-400 text-xs font-medium hover:bg-sky-500/20 transition-colors">
-                  <ExternalLink className="w-3 h-3" /> Solscan
-                </a>
-              </div>
-
-              <p className="text-[10px] text-gray-600 font-mono text-center">Mint: {truncate(selectedCard.token_mint, 10, 6)}</p>
-            </div>
-          </div>
-        </>
-      )}
+      {/* Detail Panel */}
+      <CardDetailPanel 
+        card={selectedCard}
+        onClose={() => setSelectedCard(null)}
+        onAdd={() => selectedCard && toggleWatchlist(selectedCard.token_mint, { stopPropagation: () => {} } as any)}
+        isWatched={selectedCard ? watchingMints.has(selectedCard.token_mint) : false}
+      />
     </div>
   )
 }

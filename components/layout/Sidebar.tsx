@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { X, LayoutDashboard, Flame, List, Star, Search, Settings, Target } from 'lucide-react'
 import { useUI } from '@/context/UIContext'
+import Image from 'next/image'
 
 const navigation = [
   { name: 'Home', href: '/', icon: LayoutDashboard, description: 'Analytics Dashboard' },
@@ -42,9 +43,7 @@ export default function Sidebar() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-accent-gold/10 border border-accent-gold/30 flex items-center justify-center">
-              <span className="text-accent-gold font-bold text-sm">CC</span>
-            </div>
+            <Image src="/logo.png" alt="Cartel Logo" width={36} height={36} className="rounded-lg border border-accent-gold/30" />
             <div>
               <h1 className="text-lg font-bold text-accent-gold tracking-wide">CCPS Pro</h1>
               <p className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">Dashboard</p>

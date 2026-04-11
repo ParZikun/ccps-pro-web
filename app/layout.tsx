@@ -4,10 +4,14 @@ import Navbar from '@/components/layout/Navbar'
 import Sidebar from '@/components/layout/Sidebar'
 import { UIProvider } from '@/context/UIContext'
 import { Toaster } from 'sonner'
+import { SolanaProvider } from '@/components/ui/SolanaProvider'
 
 export const metadata: Metadata = {
   title: 'CCPS Pro',
   description: 'Cards Cartel Pro Sniper — Advanced Analytics Dashboard',
+}
+
+export const viewport = {
   themeColor: '#0c0a15',
 }
 
@@ -16,8 +20,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Toaster position="top-right" richColors closeButton />
-        <UIProvider>
-          <div className="min-h-screen">
+        <SolanaProvider>
+          <UIProvider>
+            <div className="min-h-screen">
             <Navbar />
             <div className="flex pt-14">
               <Sidebar />
@@ -29,7 +34,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </main>
             </div>
           </div>
-        </UIProvider>
+          </UIProvider>
+        </SolanaProvider>
       </body>
     </html>
   )

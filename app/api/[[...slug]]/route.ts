@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 const getApiUrl = (slug: string, search: string): string => {
   const baseUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:3000'
+  if (slug === 'health') return `${baseUrl}/health${search}`
   return `${baseUrl}/api/${slug}${search}`
 }
 
@@ -24,8 +25,10 @@ async function handler(request: Request, { params }: { params: { slug?: string[]
 
     // Attach body for non-GET/HEAD requests
     if (!['GET', 'HEAD'].includes(request.method)) {
-      const body = await request.json()
-      fetchOptions.body = JSON.stringify(body)
+      const text = await request.text()
+      if (text) {
+        fetchOptions.body = text
+      }
     }
 
     const apiResponse = await fetch(apiUrl, fetchOptions)

@@ -8,6 +8,7 @@ interface DealCardGridProps {
   loading?: boolean
   error?: string
   solPriceUSD?: number
+  onSelectDeal?: (deal: Deal) => void
 }
 
 function SkeletonCard() {
@@ -28,7 +29,7 @@ function SkeletonCard() {
   )
 }
 
-export default function DealCardGrid({ deals, loading, error, solPriceUSD }: DealCardGridProps) {
+export default function DealCardGrid({ deals, loading, error, solPriceUSD, onSelectDeal }: DealCardGridProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

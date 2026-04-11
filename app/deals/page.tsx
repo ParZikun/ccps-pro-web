@@ -7,11 +7,13 @@ import CategoryFilter from '@/components/filters/CategoryFilter'
 import SortDropdown from '@/components/filters/SortDropdown'
 import { Tier, Deal } from '@/types'
 import { useEffect } from 'react'
+import CardDetailPanel from '@/components/panels/CardDetailPanel'
 
 export default function DealsPage() {
   const [selectedTier, setSelectedTier] = useState<string>('ALL')
   const [sortValue, setSortValue] = useState('listing_timestamp:desc')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
   
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
@@ -111,7 +113,12 @@ export default function DealsPage() {
       </div>
 
       {/* Deal Grid */}
-      <DealCardGrid deals={deals} loading={loading} error={error || undefined} />
+      <DealCardGrid deals={deals} loading={loading} error={error || undefined} onSelectDeal={setSelectedDeal} />
+      
+      <CardDetailPanel 
+        card={selectedDeal}
+        onClose={() => setSelectedDeal(null)}
+      />
     </div>
   )
 }

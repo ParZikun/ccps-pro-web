@@ -3,6 +3,14 @@
 import { useState, useEffect } from 'react'
 import { Menu, Wifi, WifiOff, Loader } from 'lucide-react'
 import { useUI } from '@/context/UIContext'
+import Image from 'next/image'
+import dynamic from 'next/dynamic'
+
+// Dynamically import WalletMultiButton to prevent hydration errors
+const WalletMultiButton = dynamic(
+  () => import('@solana/wallet-adapter-react-ui').then((mod) => mod.WalletMultiButton),
+  { ssr: false }
+)
 
 export default function Navbar() {
   const { toggleSidebar } = useUI()
@@ -43,41 +51,34 @@ export default function Navbar() {
 
           {/* Visible on mobile only (sidebar shows logo on desktop) */}
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="w-7 h-7 rounded-md bg-accent-gold/10 border border-accent-gold/30 flex items-center justify-center">
-              <span className="text-accent-gold font-bold text-xs">CC</span>
-            </div>
+            <Image src="/logo.png" alt="Cartel Logo" width={28} height={28} className="rounded-md border border-accent-gold/30" />
             <span className="text-accent-gold font-bold text-sm tracking-wide">CCPS Pro</span>
           </div>
         </div>
-
         {/* Right: Status + Wallet placeholder */}
         <div className="flex items-center gap-3">
-          {/* Backend Health Indicator */}
-          <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">
-            <span className="relative flex h-2 w-2">
-              {healthStatus === 'healthy' && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              )}
-              {healthStatus === 'unknown' && (
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
-              )}
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${healthStatus === 'healthy' ? 'bg-green-500' :
-                  healthStatus === 'unknown' ? 'bg-yellow-500' : 'bg-red-500'
-                }`} />
-            </span>
-            <span className="text-[11px] font-medium text-gray-400 hidden sm:block font-mono">
-              {healthStatus === 'healthy' ? 'Backend Online' :
-                healthStatus === 'unknown' ? 'Connecting...' : 'Offline'}
-            </span>
-          </div>
+           {/* Backend Health Indicator */}
+           <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/5">
+             <span className="relative flex h-2 w-2">
+               {healthStatus === 'healthy' && (
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+               )}
+               {healthStatus === 'unknown' && (
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75" />
+               )}
+               <span className={`relative inline-flex rounded-full h-2 w-2 ${healthStatus === 'healthy' ? 'bg-green-500' :
+                   healthStatus === 'unknown' ? 'bg-yellow-500' : 'bg-red-500'
+                 }`} />
+             </span>
+             <span className="text-[11px] font-medium text-gray-400 hidden sm:block font-mono">
+               {healthStatus === 'healthy' ? 'Backend Online' :
+                 healthStatus === 'unknown' ? 'Connecting...' : 'Offline'}
+             </span>
+           </div>
 
-          {/* Wallet placeholder — will be replaced with real WalletButton */}
-          <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-accent-gold/10 border border-accent-gold/20 text-accent-gold text-xs font-semibold hover:bg-accent-gold/20 transition-colors">
-            <div className="w-4 h-4 rounded-full bg-accent-gold/30 border border-accent-gold/50" />
-            <span className="hidden sm:block">Connect Wallet</span>
-          </button>
-        </div>
-      </div>
-    </header>
+           <WalletMultiButton className="!bg-accent-gold/10 !border !border-accent-gold/20 !text-accent-gold !text-xs !font-semibold hover:!bg-accent-gold/20 !transition-colors !rounded-lg !h-9" />
+         </div>
+       </div>
+     </header>
   )
 }
