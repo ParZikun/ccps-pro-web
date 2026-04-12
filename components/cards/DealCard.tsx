@@ -93,7 +93,12 @@ export default function DealCard({ deal, solPriceUSD, priority = false, onClick 
       }
     } catch (err: any) {
       console.error('[Snipe] Error:', err)
-      toast.error(err.message || 'Snipe failed', { id: loadingToast })
+      const errorMsg = err.message || 'Snipe failed';
+      const rawError = err.rawError || '';
+      toast.error(errorMsg, { 
+        description: rawError ? `Details: ${rawError.slice(0, 200)}` : undefined,
+        id: loadingToast 
+      })
     } finally {
       setIsSniping(false)
     }

@@ -105,8 +105,7 @@ export async function POST(request: Request) {
       console.log(`[Buy API] Attempt ${attempt}/${MAX_ATTEMPTS}...`);
       
       try {
-        // Construct the batch query object
-        const buyIns = {
+        const buyIns: any = {
           type: 'buy_now',
           ins: {
             auctionHouseAddress: auctionHouseAddress || 'E8cU1WiRWjanGxmn96ewBgk9vPTcL6AEZ1t6F6fkgUWe',
@@ -114,11 +113,17 @@ export async function POST(request: Request) {
             seller,
             tokenMint,
             tokenATA: resolvedTokenATA!,
-            price: price, // Number
+            price: price,
             sellerExpiry: -1,
             buyerCreatorRoyaltyPercent: 100
           }
         };
+
+        // If USDC listing, add splPrice to the instruction
+        if (splPriceStr) {
+          buyIns.ins.splPrice = JSON.parse(splPriceStr);
+          console.log(`[Buy API] Adding splPrice to instruction: ${splPriceStr}`);
+        }
 
         const q = JSON.stringify([buyIns]);
         const batchParams = new URLSearchParams({
@@ -127,7 +132,7 @@ export async function POST(request: Request) {
           maxPrioFeeLamports: '1000000' // Cap at 0.001 SOL
         });
 
-        const batchUrl = `https://api-mainnet.magiceden.dev/v2/instructions/batch?${batchParams}`;
+        const batchUrl = `https://api-mainnet.magiceden.us/v2/instructions/batch?${batchParams}`;
         const meResp = await fetch(batchUrl, {
           headers: { 'Authorization': `Bearer ${ME_API_KEY}`, 'Accept': 'application/json' }
         });
@@ -169,19 +174,29 @@ export async function POST(request: Request) {
 
         lastError = simResult.error?.message || JSON.stringify(simErr);
         const simLogs = simResult.result?.value?.logs?.join('\n') || 'No logs';
-        console.warn(`[Buy API] Attempt ${attempt} simulation logic FAILED: ${lastError}\nLogs: ${simLogs.slice(0, 500)}`);
+        console.warn(`[Buy API] Attempt ${attempt} simulation FAILED: ${lastError}\nLogs: ${simLogs.slice(0, 500)}`);
 
         if (lastError.includes('BlockhashNotFound') && attempt < MAX_ATTEMPTS) {
           console.log('[Buy API] Blockhash stale, waiting 1s to refresh ME state...');
           await new Promise(r => setTimeout(r, 1000));
           continue;
-        } else {
-          // If it's a real error (InsufficientFunds, etc.), stop and report it immediately
-          return NextResponse.json({ 
-            error: `Simulation failed: ${lastError}`, 
-            logs: simResult.result?.value?.logs?.join('\n')?.slice(0, 300) 
-          }, { status: 400 });
         }
+
+        // Check for specific errors and provide friendly messages
+        let userMessage = lastError;
+        if (lastError.includes('insufficient lamports') || lastError.includes('InsufficientFunds')) {
+          userMessage = '💸 Load up bro! You are missing out!\n\nGO BIG OR GO HOME!\n#GOTTA_CATCH_EM_ALL\n\nTime to snipe it up! 🔥';
+        } else if (lastError.includes('TokenBalance')) {
+          userMessage = '❌ Token balance error - may need to wrap SOL or have insufficient token balance';
+        } else if (lastError.includes('Invalid')) {
+          userMessage = '❌ Invalid transaction - listing may have changed or expired';
+        }
+
+        return NextResponse.json({ 
+          error: userMessage, 
+          rawError: lastError,
+          logs: simResult.result?.value?.logs?.join('\n')?.slice(0, 500) 
+        }, { status: 400 });
       } catch (e: any) {
         lastError = e.message;
         if (attempt === MAX_ATTEMPTS) throw e;
