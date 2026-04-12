@@ -106,7 +106,7 @@ function generateRedisACard(index: number): RedisACard {
     supply,
     img_url: mockImgUrl(index),
     set_url: null,
-    alt_assest_id: `alt-asset-${index}`,
+    alt_asset_id: `alt-asset-${index}`,
     alt_value: altValue,
     market_price: altValue,
     price_source: 'ALT',
@@ -211,9 +211,12 @@ export const mockAnalytics: AnalyticsDashboard = (() => {
   const scanVelocity = Array.from({ length: 24 }, (_, i) => {
     // Simulate varying webhook traffic — more during US afternoon hours
     const hour = (new Date().getHours() - 23 + i) % 24
-    const base = 3 + Math.sin((hour / 24) * Math.PI * 2 - Math.PI / 2) * 4
-    return Math.max(0, Math.round(base + Math.random() * 3))
-  })
+    const base = 12 + Math.sin((hour / 24) * Math.PI * 2 - Math.PI / 2) * 8
+    const total = Math.max(2, Math.round(base + Math.random() * 5))
+    const tiered = Math.round(total * 0.4)
+    const gold = Math.max(0, Math.round(tiered * 0.15))
+    return { total, tiered, gold }
+  }) as any
 
   // Recent activity events
   const recentActivity: EventLogEntry[] = mockDeals.slice(0, 10).map((deal, i) => ({

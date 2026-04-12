@@ -2,21 +2,22 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { X, LayoutDashboard, Flame, List, Star, Search, Settings, Target } from 'lucide-react'
+import { X, LayoutDashboard, Croissant, List, Star, Search, Settings, Target, Wallet } from 'lucide-react'
 import { useUI } from '@/context/UIContext'
 import Image from 'next/image'
 
 const navigation = [
   { name: 'Home', href: '/', icon: LayoutDashboard, description: 'Analytics Dashboard' },
-  { name: 'Active Deals', href: '/deals', icon: Flame, description: 'Hot opportunities' },
+  { name: 'Active Deals', href: '/deals', icon: Croissant, description: 'Hot opportunities' },
   { name: 'All Listings', href: '/listings', icon: List, description: 'Pipeline view' },
   { name: 'Watchlist', href: '/watchlist', icon: Star, description: 'Tracked cards' },
+  { name: 'Holdings', href: '/holdings', icon: Wallet, description: 'Portfolio status' },
   { name: 'Card Search', href: '/search', icon: Search, description: 'Browse Redis A' },
   { name: 'Competitor Snipes', href: '/competitors', icon: Target, description: 'Tracked wallets' },
 ]
 
 const bottomNav = [
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Operator Suite', href: '/config', icon: Settings, description: 'Global System Sync' },
 ]
 
 export default function Sidebar() {
@@ -41,14 +42,22 @@ export default function Sidebar() {
         ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Cartel Logo" width={36} height={36} className="rounded-lg border border-accent-gold/30" />
-            <div>
-              <h1 className="text-lg font-bold text-accent-gold tracking-wide">CCPS Pro</h1>
-              <p className="text-[10px] text-gray-500 font-mono uppercase tracking-widest">Dashboard</p>
+        <div className="flex items-center justify-between px-6 py-6 pb-4">
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-accent-gold/20 rounded-xl blur-lg group-hover:bg-accent-gold/30 transition-all opacity-0 group-hover:opacity-100" />
+              <div className="relative bg-black rounded-xl border border-white/10 p-1.5 shadow-2xl">
+                <Image src="/logo.png" alt="Cartel Logo" width={32} height={32} className="rounded-lg" priority />
+              </div>
             </div>
-          </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tighter">CCPS<span className="text-accent-gold">PRO</span></h1>
+              <div className="flex items-center gap-1.5">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                <p className="text-[9px] text-gray-500 font-mono uppercase tracking-[0.2em] font-black">Operator</p>
+              </div>
+            </div>
+          </Link>
 
           {/* Mobile Close */}
           <button onClick={closeSidebar} className="p-2 text-gray-400 hover:text-white lg:hidden">

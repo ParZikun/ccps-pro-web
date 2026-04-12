@@ -33,7 +33,7 @@ export interface RedisACard {
   supply: number;
   img_url: string | null;
   set_url: string | null;
-  alt_assest_id: string | null;  // Note: typo preserved from original
+  alt_asset_id: string | null;  // Normalized key
   alt_value: number | null;
   market_price: number;
   price_source: string;          // ALT | FALLBACK_INSURED | NONE

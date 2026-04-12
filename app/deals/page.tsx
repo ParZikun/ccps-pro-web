@@ -7,14 +7,13 @@ import CategoryFilter from '@/components/filters/CategoryFilter'
 import SortDropdown from '@/components/filters/SortDropdown'
 import { Tier, Deal } from '@/types'
 import { useEffect } from 'react'
-import CardDetailPanel from '@/components/panels/CardDetailPanel'
+import { useUI } from '@/context/UIContext'
 
 export default function DealsPage() {
   const [selectedTier, setSelectedTier] = useState<string>('ALL')
   const [sortValue, setSortValue] = useState('listing_timestamp:desc')
+  const { openDealModal } = useUI()
   const [searchQuery, setSearchQuery] = useState('')
-  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
-  
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +34,13 @@ export default function DealsPage() {
       try {
         const [sortBy, order] = sortValue.split(':')
         const urlList = new URLSearchParams()
-        if (selectedTier !== 'ALL') urlList.append('tier', selectedTier)
+        if (selectedTier !== 'ALL') {
+          urlList.append('tier', selectedTier)
+        } else {
+          // If "ALL" is selected in Active Deals, we still exclude 'NONE'
+          // This is handled by not passing a tier or the API filtering, 
+          // but for safety we can filter the result below.
+        }
         if (debouncedSearch) urlList.append('search', debouncedSearch)
         urlList.append('sortBy', sortBy)
         urlList.append('order', order)
@@ -43,7 +48,10 @@ export default function DealsPage() {
         const res = await fetch(`/api/deals?${urlList.toString()}`)
         if (!res.ok) throw new Error('Failed to fetch deals')
         const data = await res.json()
-        setDeals(data.deals || [])
+        
+        // Final safety filter: Remove Tier.NONE from Active Deals
+        const validDeals = (data.deals || []).filter((d: Deal) => d.tier !== Tier.NONE && d.tier !== 'NONE')
+        setDeals(validDeals)
       } catch (err: any) {
         setError(err.message)
       } finally {
@@ -113,12 +121,7 @@ export default function DealsPage() {
       </div>
 
       {/* Deal Grid */}
-      <DealCardGrid deals={deals} loading={loading} error={error || undefined} onSelectDeal={setSelectedDeal} />
-      
-      <CardDetailPanel 
-        card={selectedDeal}
-        onClose={() => setSelectedDeal(null)}
-      />
+      <DealCardGrid deals={deals} loading={loading} error={error || undefined} onSelectDeal={openDealModal} />
     </div>
   )
 }

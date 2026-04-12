@@ -1,151 +1,149 @@
 'use client'
-import { useState } from 'react'
-import Image from 'next/image'
-import { TrendingDown, Zap, Star } from 'lucide-react'
-import { getTierColor, formatUsd, formatSol, timeAgo, getConfidenceColor } from '@/lib/format'
-import type { Deal } from '@/types'
-import { Tier } from '@/types'
-import { useConnection } from '@solana/wallet-adapter-react'
-import { toast } from 'sonner'
 
-// Buyer wallet is determined server-side from BUYER_WALLET_PRIVATE_KEY.
-// The frontend doesn't need to know or manage the sniper address.
+import Image from 'next/image'
+import { TrendingDown, Croissant, Maximize2, BarChart3, DollarSign, Fingerprint } from 'lucide-react'
+import { getTierColor, formatUsd, formatSol } from '@/lib/format'
+import type { Deal } from '@/types'
+import { useUI } from '@/context/UIContext'
+import CopyButton from '@/components/ui/CopyButton'
 
 interface DealCardProps {
   deal: Deal
-  solPriceUSD?: number
   priority?: boolean
-  onClick?: () => void
 }
 
-const tierIcons: Record<string, string> = {
-  [Tier.GOLD]: '🏆',
-  [Tier.SILVER]: '🥈',
-  [Tier.BRONZE]: '🥉',
-  [Tier.IRON]: '⚙️',
-  [Tier.SUSPICIOUS]: '⚠️',
-  [Tier.NONE]: 'ℹ️',
-  'INFO': 'ℹ️',
-  [Tier.AUTOBUY]: '🤖',
-}
-
-export default function DealCard({ deal, solPriceUSD, priority = false, onClick }: DealCardProps) {
-  const [isWatching, setIsWatching] = useState(false)
-  const [isSniping, setIsSniping] = useState(false)
-  const { connection } = useConnection()
+export default function DealCard({ deal, priority = false }: DealCardProps) {
+  const { openDealModal, viewMode } = useUI()
   const tierColor = getTierColor(deal.tier)
-  const confColor = getConfidenceColor(deal.alt_confidence)
-
-  const handleSnipe = async (e: React.MouseEvent) => {
-    e.stopPropagation()
-    setIsSniping(true)
-    const loadingToast = toast.loading('Building transaction...')
-    try {
-      // ── Call backend: build + sign + submit via Helius Sender ─────────────────
-      // All Solana logic is server-side — no wallet popup, no Solflare Lighthouse
-      // injection that was causing numRequiredSignatures=2 and validators dropping tx.
-      const res = await fetch('/api/buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          buyer: 'backend',  // overridden server-side from BUYER_WALLET_PRIVATE_KEY
-          seller: deal.seller,
-          tokenMint: deal.token_mint,
-          price: deal.listing_price_sol,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'API error')
-
-      const { signature } = data
-      if (!signature) throw new Error('No signature returned from backend')
-      console.log('[Snipe] ✅ Submitted:', signature)
-
-      // ── Poll for confirmation ─────────────────────────────────────────────────
-      toast.loading('Confirming...', { id: loadingToast })
-      let confirmed = false
-      let failed = false
-
-      for (let i = 0; i < 40 && !confirmed && !failed; i++) {
-        await new Promise(r => setTimeout(r, 500))
-        try {
-          const s = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
-          const status = s?.value
-          console.log(`[Snipe] Status[${i}]:`, status?.confirmationStatus ?? 'null', status?.err ? `ERR: ${JSON.stringify(status.err)}` : 'ok')
-          if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
-            if (status.err) { failed = true } else { confirmed = true }
-          }
-        } catch {}
-      }
-
-      const link = (
-        <a href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noopener noreferrer">
-          View on Solscan →
-        </a>
-      )
-
-      if (confirmed) {
-        toast.success('🎉 Sniped!', { description: link, id: loadingToast })
-      } else if (failed) {
-        toast.error('❌ Tx landed but FAILED — check Solscan', { description: link, id: loadingToast })
-      } else {
-        toast.info('⏳ Submitted — check Solscan wallet page', { description: link, id: loadingToast })
-      }
-    } catch (err: any) {
-      console.error('[Snipe] Error:', err)
-      const errorMsg = err.message || 'Snipe failed';
-      const rawError = err.rawError || '';
-      toast.error(errorMsg, { 
-        description: rawError ? `Details: ${rawError.slice(0, 200)}` : undefined,
-        id: loadingToast 
-      })
-    } finally {
-      setIsSniping(false)
-    }
-  }
-
+  
   const discount = deal.alt_value && deal.alt_value > 0 ? ((deal.alt_value - deal.listing_price_usd) / deal.alt_value * 100) : 0
   const profit = deal.alt_value ? (0.85 * deal.alt_value) - deal.listing_price_usd : 0
-  const meLink = 'https://magiceden.io/item-details/' + deal.token_mint
 
-  return (
-    <div className={'group relative bg-surface rounded-xl border border-white/5 overflow-hidden card-hover-lift card-shine-effect ' + (onClick ? 'cursor-pointer' : '')} onClick={onClick}>
-      <div className="relative w-full h-48 bg-black/40 overflow-hidden">
-        <div className="absolute top-2 left-2 z-30 flex items-center gap-1.5 flex-wrap">
-          <div className={'flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] tracking-wide font-bold bg-black/80 backdrop-blur-md border border-white/10 ' + tierColor.text}>
-            <span>{tierIcons[deal.tier] || 'ℹ️'}</span><span>{deal.tier === 'NONE' ? 'INFO' : deal.tier}</span>
-          </div>
-          {deal.isCartel && <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-red-500/80 text-white backdrop-blur-md">CARTEL</div>}
-          {deal.isCompetitor && <div className="flex items-center gap-1 px-2 py-0.5 rounded text-[9px] font-bold bg-orange-500/80 text-white backdrop-blur-md">COMPETITOR</div>}
+  // List View (Table Row style)
+  if (viewMode === 'list') {
+    return (
+      <div 
+        onClick={() => openDealModal(deal)}
+        className="group relative bg-surface hover:bg-surface-light border-b border-white/5 px-4 py-2.5 flex items-center gap-6 transition-all duration-200 cursor-pointer overflow-hidden text-xs"
+      >
+        {/* Tier Indicator Bar */}
+        <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${tierColor.bg} shadow-[0_0_8px_${tierColor.bg.split('-')[1]}]`} />
+        
+        <div className="relative w-10 h-10 rounded bg-black/30 flex-shrink-0 border border-white/5">
+          <Image src={deal.img_url || ''} alt="" fill className="object-contain" unoptimized />
         </div>
-        <button onClick={async (e) => { e.stopPropagation(); e.preventDefault(); setIsWatching(!isWatching); }} className="absolute top-3 right-3 z-30 p-2 rounded-full bg-black/50 hover:bg-black/80 border border-white/10">
-          <Star className={'w-4 h-4 ' + (isWatching ? 'text-yellow-400 fill-yellow-400' : 'text-gray-400')} />
-        </button>
-        <Image src={deal.img_url || 'https://placehold.co/400x560/13111a/333?text=No+Image'} alt={deal.name} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="100vw" priority={priority} unoptimized />
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-[#13111a] to-transparent" />
+
+        <div className="flex-1 min-w-0 grid grid-cols-12 gap-4 items-center">
+          <div className="col-span-5 min-w-0">
+             <div className="flex items-center gap-2">
+                <span className="text-[11px] font-bold text-white truncate max-w-[200px] group-hover:text-accent-gold transition-colors">{deal.name}</span>
+                <CopyButton text={deal.token_mint} className="opacity-0 group-hover:opacity-100" iconSize={10} />
+             </div>
+             <p className="text-[10px] text-gray-500 font-mono uppercase tracking-tighter">{deal.grading_company} {deal.grade} · {deal.token_mint.slice(0, 8)}</p>
+          </div>
+
+          <div className="col-span-2 text-right">
+             <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black text-blue-400/80">Listing</p>
+             <p className="font-bold text-white font-mono">{formatUsd(deal.listing_price_usd)}</p>
+          </div>
+
+          <div className="col-span-2 text-right">
+             <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black">Alt Val</p>
+             <p className="font-bold text-accent-gold font-mono">{formatUsd(deal.alt_value)}</p>
+          </div>
+
+          <div className="col-span-1 text-right">
+             <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black">Disc</p>
+             <p className={`font-black font-mono ${discount > 10 ? 'text-green-400' : 'text-gray-500'}`}>{discount.toFixed(0)}%</p>
+          </div>
+
+          <div className="col-span-2 text-right">
+             <p className="text-[9px] text-gray-500 uppercase tracking-widest font-black">Profit</p>
+             <p className={`font-black font-mono ${profit > 0 ? 'text-green-400' : 'text-red-400'}`}>{formatUsd(profit)}</p>
+          </div>
+        </div>
       </div>
-      <div className="p-4 space-y-3">
-        <div><h3 className="text-sm font-bold text-white truncate group-hover:text-accent-gold">{deal.name}</h3><p className="text-[11px] text-gray-500 font-mono">{deal.grading_company} · {deal.grade} · #{deal.grading_id}</p></div>
-        <div className="flex items-center justify-between border-b border-white/5 pb-2">
-          <div><p className="text-[9px] text-gray-500 uppercase">Listed</p><p className="text-sm font-bold text-white font-mono">{formatSol(deal.listing_price_sol)} <span className="text-gray-500 text-xs">({formatUsd(deal.listing_price_usd)})</span></p></div>
-          <div className="text-right"><p className="text-[9px] text-gray-500 uppercase">Alt Value <span className={'text-[8px] ml-1 px-1 rounded ' + confColor.text}>{deal.alt_confidence ? deal.alt_confidence.toFixed(0) + '%' : 'N/A'}</span></p><p className="text-sm font-bold text-accent-gold font-mono">{formatUsd(deal.alt_value)}</p></div>
+    )
+  }
+
+  // Grid View (The Operator Card)
+  return (
+    <div 
+      className="group relative bg-surface rounded-lg border border-white/5 overflow-hidden transition-all duration-300 cursor-pointer hover:border-white/20 shadow-2xl"
+      onClick={() => openDealModal(deal)}
+    >
+      {/* Tier Indicator (Vertical Glowing Bar) */}
+      <div className={`absolute left-0 top-0 bottom-0 w-[3px] z-20 ${tierColor.bg} shadow-[0_0_15px_1px_rgba(255,215,0,0.3)] transition-all group-hover:w-[5px]`} 
+           style={{ backgroundColor: tierColor.text.includes('gold') ? '#ffd700' : tierColor.bg === 'bg-white/10' ? '#6b7280' : undefined }} />
+
+      {/* Visual Header - Industrial Container */}
+      <div className="relative aspect-[5/4] w-full bg-black/60 overflow-hidden border-b border-white/5">
+        <Image 
+          src={deal.img_url || 'https://placehold.co/400x320/13111a/333?text=No+Image'} 
+          alt={deal.name} 
+          fill 
+          className="object-contain p-2 group-hover:scale-105 transition-transform duration-500 ease-out" 
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          priority={priority} 
+          unoptimized 
+        />
+        
+        {/* Subtle Bottom Gradient for text readability */}
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent pt-8" />
+        
+        <div className="absolute bottom-2 left-4 right-2 z-10">
+           <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[9px] text-gray-300 font-bold uppercase tracking-wider drop-shadow-lg mb-0.5">{deal.grading_company} {deal.grade}</p>
+                <h3 className="text-[11px] font-black text-white group-hover:text-accent-gold transition-colors line-clamp-1 truncate drop-shadow-xl">{deal.name}</h3>
+              </div>
+              <CopyButton text={deal.token_mint} className="opacity-0 group-hover:opacity-100 bg-black/60 border border-white/10" iconSize={10} />
+           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className={'flex-[0.8] py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 ' + (discount >= 30 ? 'text-yellow-400' : discount >= 20 ? 'text-red-400' : discount >= 10 ? 'text-blue-400' : 'text-gray-400')}>
-            <TrendingDown className="w-3.5 h-3.5" /><span>{discount.toFixed(1)}% off</span>
-          </div>
-          <div className={'flex-[1.2] py-1.5 rounded text-xs font-bold flex items-center justify-center gap-1 ' + (profit > 20 ? 'text-green-400' : profit > 0 ? 'text-green-500/70' : 'text-red-400')}>
-            {profit > 0 ? '🟢' : '🔴'}<span>{formatUsd(Math.abs(profit))} Profit</span>
-          </div>
+
+        {/* Badges */}
+        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end">
+           {deal.isCartel && <div className="px-1.5 py-0.5 rounded text-[7px] font-black bg-red-600 text-white shadow-xl uppercase">Cartel</div>}
+           {deal.isCompetitor && <div className="px-1.5 py-0.5 rounded text-[7px] font-black bg-orange-600 text-white shadow-xl uppercase">Rival</div>}
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-gray-600 font-mono">{timeAgo(deal.listing_timestamp)}</span>
-          <div className="flex gap-2 text-[10px] font-bold text-gray-500"><a href={'https://collectorcrypt.com/assets/solana/' + deal.token_mint} target="_blank">CC</a><span>·</span><a href={deal.alt_assest_id ? 'https://alt.xyz/itm/' + deal.alt_assest_id : 'https://alt.xyz'} target="_blank">ALT</a><span>·</span><a href={meLink} target="_blank" className="hover:text-accent-gold">ME</a></div>
+      </div>
+
+      {/* High-Density Metrics Deck */}
+      <div className="p-3 bg-black/40 space-y-3">
+        {/* Top Row: Prices */}
+        <div className="grid grid-cols-3 gap-2">
+           <div className="text-left">
+              <p className="text-[8px] text-gray-500 uppercase font-black tracking-widest">Listed</p>
+              <p className="text-[11px] font-bold text-white font-mono">{formatUsd(deal.listing_price_usd)}</p>
+           </div>
+           <div className="text-center">
+              <p className="text-[8px] text-gray-500 uppercase font-black tracking-widest">Alt Val</p>
+              <p className="text-[11px] font-bold text-accent-gold font-mono">{formatUsd(deal.alt_value)}</p>
+           </div>
+           <div className="text-right">
+              <p className="text-[8px] text-gray-500 uppercase font-black tracking-widest">Cartel Avg</p>
+              <p className="text-[11px] font-bold text-gray-400 font-mono">{formatUsd(deal.cartel_avg || deal.alt_value * 0.98)}</p>
+           </div>
         </div>
-        <button disabled={isSniping || !deal.seller} onClick={handleSnipe} className="w-full py-2 rounded-lg bg-accent-gold/10 hover:bg-accent-gold/20 border border-accent-gold/30 text-accent-gold text-xs font-bold flex items-center justify-center gap-2 disabled:opacity-50">
-          {isSniping ? <div className="w-3.5 h-3.5 border-2 border-accent-gold border-t-transparent rounded-full animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
-          {isSniping ? 'SNIPING...' : 'SNIPE NOW'}
-        </button>
+
+        {/* Bottom Row: Results */}
+        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+           <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${profit > 0 ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'} animate-pulse`} />
+              <p className={`text-xs font-black font-mono ${profit > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {profit > 0 ? '+' : ''}{formatUsd(profit)}
+              </p>
+           </div>
+           <div className="flex items-center gap-1 bg-black/50 px-2 py-0.5 rounded border border-white/5">
+              <Croissant className="w-2.5 h-2.5 text-accent-gold" />
+              <p className="text-[10px] font-black text-white font-mono">{discount.toFixed(0)}% OFF</p>
+           </div>
+        </div>
+      </div>
+
+      {/* Hover Inspect Indicator */}
+      <div className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-all pointer-events-none">
+         <Maximize2 className="w-3 h-3 text-white/20" />
       </div>
     </div>
   )

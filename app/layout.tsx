@@ -5,10 +5,14 @@ import Sidebar from '@/components/layout/Sidebar'
 import { UIProvider } from '@/context/UIContext'
 import { Toaster } from 'sonner'
 import { SolanaProvider } from '@/components/ui/SolanaProvider'
+import CardModal from '@/components/cards/CardModal'
 
 export const metadata: Metadata = {
   title: 'CCPS Pro',
   description: 'Cards Cartel Pro Sniper — Advanced Analytics Dashboard',
+  icons: {
+    icon: '/logo.png',
+  },
 }
 
 export const viewport = {
@@ -33,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </div>
               </main>
             </div>
+            <CardModal />
           </div>
           </UIProvider>
         </SolanaProvider>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Star, TrendingUp, TrendingDown, Trash2, ExternalLink, BarChart3, Search, Plus } from 'lucide-react'
+import { useUI } from '@/context/UIContext'
 import { formatUsd, getConfidenceColor, timeAgo, truncate } from '@/lib/format'
 import type { WatchlistItem } from '@/types'
 import { useEffect } from 'react'
@@ -10,9 +11,9 @@ import Sparkline from '@/components/ui/Sparkline'
 import CardDetailPanel from '@/components/panels/CardDetailPanel'
 
 export default function WatchlistPage() {
+  const { openDealModal } = useUI()
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedItem, setSelectedItem] = useState<WatchlistItem | null>(null)
   const [searchFilter, setSearchFilter] = useState('')
 
   const filteredList = useMemo(() => {
@@ -47,7 +48,6 @@ export default function WatchlistPage() {
   const removeFromWatchlist = async (mint: string) => {
     // Optimistic UI update
     setWatchlist(prev => prev.filter(item => item.token_mint !== mint))
-    if (selectedItem?.token_mint === mint) setSelectedItem(null)
 
     // Backend call
     try {
@@ -148,7 +148,7 @@ export default function WatchlistPage() {
                   <tr
                     key={item.token_mint}
                     className="border-b border-white/[0.03] hover:bg-white/[0.03] cursor-pointer transition-colors group"
-                    onClick={() => setSelectedItem(item)}
+                    onClick={() => openDealModal(item as any)}
                   >
                     {/* Card Name */}
                     <td className="px-4 py-3">
@@ -237,15 +237,6 @@ export default function WatchlistPage() {
           </div>
         ) : null}
       </div>
-
-      {/* Detail Panel */}
-      <CardDetailPanel 
-        card={selectedItem}
-        onClose={() => setSelectedItem(null)}
-        onRemove={() => {
-          if (selectedItem) removeFromWatchlist(selectedItem.token_mint)
-        }}
-      />
     </div>
   )
 }

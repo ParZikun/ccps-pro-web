@@ -51,8 +51,10 @@ export default function Navbar() {
 
           {/* Visible on mobile only (sidebar shows logo on desktop) */}
           <div className="flex items-center gap-2 lg:hidden">
-            <Image src="/logo.png" alt="Cartel Logo" width={28} height={28} className="rounded-md border border-accent-gold/30" />
-            <span className="text-accent-gold font-bold text-sm tracking-wide">CCPS Pro</span>
+            <div className="relative bg-black rounded-lg border border-white/10 p-1 shadow-[0_0_15px_-5px_rgba(255,215,0,0.3)]">
+              <Image src="/logo.png" alt="Cartel Logo" width={24} height={24} className="rounded" />
+            </div>
+            <span className="text-white font-bold text-sm tracking-tighter">CCPS<span className="text-accent-gold">PRO</span></span>
           </div>
         </div>
         {/* Right: Status + Wallet placeholder */}
