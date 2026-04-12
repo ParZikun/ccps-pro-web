@@ -1,168 +1,234 @@
 import { NextResponse } from 'next/server';
-import { PublicKey } from '@solana/web3.js';
+import { PublicKey, VersionedTransaction, Keypair } from '@solana/web3.js';
+
+// ── Helius Sender tip accounts (any one of these is valid) ────────────────────
+const HELIUS_TIP_ACCOUNTS = [
+  '4ACfpUFoaSD9bfPdeu6DBt89gB6ENTeHBXCAi87NhDEE',
+  'D2L6yPZ2FmmmTKPgzaMKdhu6EWZcTpLy1Vhx8uvZe7NZ',
+  '9bnz4RShgq1hAnLnZbP8kbgBg1kEmcJBYQq3gQbmnSta',
+  '5VY91ws6B2hMmBFRsXkoAAdsPHBJwRfBht4DXox3xkwn',
+  '2nyhqdwKcJZR2vcqCyrYsaPVdAnFoJjiksCXJ7hfEYgD',
+  '2q5pghRs6arqVjRvT5gfgWfWcHWmw1ZuCzphgd5KfWGJ',
+];
+const JITO_TIP_LAMPORTS = 200_000; // 0.0002 SOL minimum required by Helius Sender
 
 const TOKEN_PROGRAM_ID = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
 const ASSOCIATED_TOKEN_PROGRAM_ID = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL');
 
-/**
- * Derives the Associated Token Account (ATA) address for a given owner and mint.
- * This is a pure PDA derivation — no RPC needed.
- */
-async function deriveATA(owner: string, mint: string): Promise<string> {
-    const ownerPubkey = new PublicKey(owner);
-    const mintPubkey = new PublicKey(mint);
-    const [ata] = PublicKey.findProgramAddressSync(
-        [ownerPubkey.toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), mintPubkey.toBuffer()],
-        ASSOCIATED_TOKEN_PROGRAM_ID
-    );
-    return ata.toBase58();
+function isValidPublicKey(key: string): boolean {
+  try { new PublicKey(key); return key.length >= 32 && key.length <= 44; }
+  catch { return false; }
 }
 
+function deriveATA(owner: string, mint: string): string {
+  const [ata] = PublicKey.findProgramAddressSync(
+    [new PublicKey(owner).toBuffer(), TOKEN_PROGRAM_ID.toBuffer(), new PublicKey(mint).toBuffer()],
+    ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+  return ata.toBase58();
+}
+
+function loadKeypair(): Keypair {
+  const raw = process.env.BUYER_WALLET_PRIVATE_KEY;
+  if (!raw) throw new Error('BUYER_WALLET_PRIVATE_KEY not set');
+  // Expected format: JSON array of bytes e.g. [28,233,170,...]
+  const arr = JSON.parse(raw);
+  return Keypair.fromSecretKey(Uint8Array.from(arr));
+}
 
 export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    let { buyer, seller, tokenMint, tokenATA, price } = body;
+
+    // Load signer keypair — stays server-side, never exposed to browser
+    let keypair: Keypair;
+    try { keypair = loadKeypair(); }
+    catch (e: any) { return NextResponse.json({ error: `Key error: ${e.message}` }, { status: 500 }); }
+
+    // Always use the sniper keypair's public key as buyer.
+    // We override whatever the frontend sends so ME builds the tx for the wallet we control.
+    buyer = keypair.publicKey.toBase58();
+    console.log(`[Buy API] Sniper wallet (buyer): ${buyer}`);
+
+    if (!buyer || !seller || !tokenMint)
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    
+    // Now validate all keys (buyer is now a valid pubkey from our keypair)
+    if (!isValidPublicKey(buyer) || !isValidPublicKey(seller) || !isValidPublicKey(tokenMint))
+      return NextResponse.json({ error: 'Invalid address format' }, { status: 400 });
+
+    const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL!;
+    const ME_API_KEY = process.env.NEXT_PUBLIC_ME_API_KEY;
+
+    // ── Step 1: Fetch live listing from ME ────────────────────────────────────
+    let auctionHouseAddress: string | undefined;
+    let splPriceStr: string | undefined;
+    let resolvedTokenATA: string | undefined = tokenATA;
+
     try {
-        const body = await request.json();
-        let { buyer, seller, tokenMint, tokenATA, price } = body;
-
-        if (!buyer || !seller || !tokenMint) {
-            return NextResponse.json({ error: 'Missing required parameters: buyer, seller, tokenMint' }, { status: 400 });
+      // Use timestamp cache-buster to avoid stale price data from ME
+      const listingsUrl = `https://api-mainnet.magiceden.dev/v2/tokens/${tokenMint}/listings?t=${Date.now()}`;
+      const listingsResp = await fetch(listingsUrl, {
+        headers: { 'Authorization': `Bearer ${ME_API_KEY}`, 'Accept': 'application/json' }
+      });
+      if (listingsResp.ok) {
+        const listings = await listingsResp.json();
+        const arr = Array.isArray(listings) ? listings : (listings?.listings ?? []);
+        console.log(`[Buy API] Listings for ${tokenMint}: ${arr.length} found`);
+        if (arr.length > 0) {
+          const listing = arr.find((l: any) => l.seller === seller || l.tokenOwner === seller) || arr[0];
+          auctionHouseAddress = listing.auctionHouse;
+          resolvedTokenATA = listing.tokenAddress || resolvedTokenATA;
+          const splPriceObj = listing.priceInfo?.splPrice || listing.token?.priceInfo?.splPrice;
+          if (splPriceObj) {
+            price = parseFloat(splPriceObj.rawAmount) / Math.pow(10, splPriceObj.decimals ?? 6);
+            splPriceStr = JSON.stringify(splPriceObj);
+            console.log(`[Buy API] USDC listing — splPrice: ${splPriceStr}`);
+          } else {
+            price = listing.price;
+            console.log(`[Buy API] SOL listing — Latest Price: ${price} SOL`);
+          }
         }
+      }
+    } catch (e: any) { console.warn('[Buy API] Listings fetch error:', e.message); }
 
-        const ME_API_KEY = process.env.NEXT_PUBLIC_ME_API_KEY || process.env.ME_API_KEY;
+    if (!price) return NextResponse.json({ error: 'Could not determine price' }, { status: 400 });
+    if (!resolvedTokenATA) return NextResponse.json({ error: 'Could not find seller token account' }, { status: 400 });
 
-        // === Step 1: Fetch live listing data from ME ===
-        let auctionHouseAddress: string | undefined;
-        let sellerExpiry: number = 0;
-        let splPriceStr: string | undefined;
-        let resolvedTokenATA: string | undefined = tokenATA;
+    // ── Steps 2 & 3 & 4: Fetch → Sign → Simulate (Retry Loop) ────────────────
+    let txBase64 = '';
+    let lastError = '';
+    const MAX_ATTEMPTS = 3;
 
-        try {
-            const listingsUrl = `https://api-mainnet.magiceden.dev/v2/tokens/${tokenMint}/listings`;
-            const listingsResp = await fetch(listingsUrl, {
-                headers: ME_API_KEY ? { 'Authorization': `Bearer ${ME_API_KEY}` } : {}
-            });
-            
-            const rawText = await listingsResp.text();
-            console.log(`[Buy API] Listings API status: ${listingsResp.status}`);
-            console.log(`[Buy API] Listings raw response: ${rawText.slice(0, 1000)}`);
-
-            if (listingsResp.ok) {
-                let listingsData: any;
-                try { listingsData = JSON.parse(rawText); } catch { listingsData = null; }
-
-                // ME API returns either a bare array [] or { listings: [] }
-                const listings = Array.isArray(listingsData)
-                    ? listingsData
-                    : (listingsData?.listings ?? []);
-
-                if (listings.length > 0) {
-                    // Priority: match by seller, fallback to cheapest
-                    const listing = listings.find((l: any) =>
-                        l.seller === seller || l.tokenOwner === seller || l.pdaAddress === seller
-                    ) || listings[0];
-
-                    console.log(`[Buy API] Matched listing:`, JSON.stringify(listing, null, 2));
-
-                    auctionHouseAddress = listing.auctionHouse;
-                    sellerExpiry = listing.expiry < 0 ? 0 : (listing.expiry ?? 0);
-                    resolvedTokenATA = listing.tokenAddress || resolvedTokenATA;
-
-                    const splPriceObj = listing.priceInfo?.splPrice || listing.token?.priceInfo?.splPrice;
-
-                    if (splPriceObj) {
-                        // USDC listing: price MUST be in USDC units, not SOL
-                        const usdcAmount = parseFloat(splPriceObj.rawAmount) / Math.pow(10, splPriceObj.decimals ?? 6);
-                        price = usdcAmount;
-                        splPriceStr = JSON.stringify(splPriceObj);
-                        console.log(`[Buy API] ✅ USDC listing: ${usdcAmount} USDC | AH: ${auctionHouseAddress}`);
-                    } else {
-                        // SOL listing: use the exact price from ME listing
-                        price = listing.price;
-                        console.log(`[Buy API] ✅ SOL listing: ${price} SOL | AH: ${auctionHouseAddress}`);
-                    }
-                } else {
-                    console.warn(`[Buy API] ⚠️ No active listings found for mint ${tokenMint}. Using caller-supplied price.`);
-                    // Fall back to what the UI sent — at least try
-                    auctionHouseAddress = undefined;
-                }
-            }
-        } catch (e: any) {
-            console.warn('[Buy API] Listings fetch error:', e.message);
-        }
-
-        if (!price) {
-            return NextResponse.json({ error: 'Could not determine listing price — listing may have already sold' }, { status: 400 });
-        }
-
-        if (!resolvedTokenATA) {
-            return NextResponse.json({ error: 'Could not find seller token account — listing may have already sold' }, { status: 400 });
-        }
-
-        // === Step 2: Derive buyer's NFT destination ATA address ===
-        // We need to pass the buyer's ATA for the NFT mint to ME's transfer endpoint.
-        // ATA address = findProgramAddress([buyer, TOKEN_PROGRAM_ID, mint], ATA_PROGRAM_ID)
-        // We compute this server-side to avoid needing @solana/spl-token on the client.
-        const buyerAtaAddress = await deriveATA(buyer, tokenMint);
-        console.log(`[Buy API] Buyer NFT ATA: ${buyerAtaAddress}`);
-
-        // === Step 3: Build ME buy_now_transfer_nft URL ===
-        // We use buy_now_transfer_nft with createATA=false to SKIP ATA creation instruction.
-        // The ATA is pre-created by the client. This saves ~35 bytes in tx size.
-        const endpoint = 'https://api-mainnet.magiceden.dev/v2/instructions/buy_now_transfer_nft';
-
-        const queryParams = new URLSearchParams({
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      console.log(`[Buy API] Attempt ${attempt}/${MAX_ATTEMPTS}...`);
+      
+      try {
+        // Construct the batch query object
+        const buyIns = {
+          type: 'buy_now',
+          ins: {
+            auctionHouseAddress: auctionHouseAddress || 'E8cU1WiRWjanGxmn96ewBgk9vPTcL6AEZ1t6F6fkgUWe',
             buyer,
             seller,
-            auctionHouseAddress: auctionHouseAddress || 'E8cU1WiRWjanGxmn96ewBgk9vPTcL6AEZ1t6F6fkgUWe',
             tokenMint,
-            tokenATA: resolvedTokenATA || '',
-            price: price.toString(),
-            destinationATA: buyerAtaAddress,
-            destinationOwner: buyer,
-            createATA: 'false',
-            buyerCreatorRoyaltyPercent: '0',  // Skip royalty distribution instruction (~30-50 bytes saved!)
-            priorityFee: '0',           // Try to omit SetComputeUnitPrice instruction (~16 bytes)
-            useV0: 'true',
+            tokenATA: resolvedTokenATA!,
+            price: price, // Number
+            sellerExpiry: -1,
+            buyerCreatorRoyaltyPercent: 100
+          }
+        };
+
+        const q = JSON.stringify([buyIns]);
+        const batchParams = new URLSearchParams({
+          q: q,
+          prioFeeMicroLamports: '50000', // ~50k microLamports priority fee
+          maxPrioFeeLamports: '1000000' // Cap at 0.001 SOL
         });
 
-        if (sellerExpiry !== undefined) queryParams.append('sellerExpiry', sellerExpiry.toString());
-        if (splPriceStr) queryParams.append('splPrice', splPriceStr);
-
-        const fullUrl = `${endpoint}?${queryParams.toString()}`;
-        console.log(`[Buy API] Calling ME buy_now_transfer_nft: ${fullUrl}`);
-
-        const response = await fetch(fullUrl, {
-            method: 'GET',
-            headers: {
-                ...(ME_API_KEY ? { 'Authorization': `Bearer ${ME_API_KEY}` } : {}),
-                'Accept': 'application/json'
-            }
+        const batchUrl = `https://api-mainnet.magiceden.dev/v2/instructions/batch?${batchParams}`;
+        const meResp = await fetch(batchUrl, {
+          headers: { 'Authorization': `Bearer ${ME_API_KEY}`, 'Accept': 'application/json' }
         });
+        if (!meResp.ok) throw new Error(`ME Batch API: ${meResp.status}`);
+        
+        const batchData = await meResp.json();
+        const data = batchData[0]?.value; // Batch returns an array of results with { status, value }
+        if (!data) throw new Error('No value data from ME Batch API');
 
-        const responseText = await response.text();
-        console.log(`[Buy API] ME buy_now status: ${response.status} | body: ${responseText.slice(0, 500)}`);
-
-        if (!response.ok) {
-            return NextResponse.json({ error: responseText }, { status: response.status });
+        // Look for the best available transaction data (v0 is preferred)
+        const txSource = data.v0?.txSigned || data.txSigned || data.v0?.tx || data.tx;
+        if (!txSource || !txSource.data) {
+          console.error('[Buy API] ME Response structure:', JSON.stringify(data).slice(0, 500));
+          throw new Error('No transaction data found in ME response');
         }
 
-        let data: any;
-        try { data = JSON.parse(responseText); } catch {
-            return NextResponse.json({ error: 'Invalid JSON from ME' }, { status: 500 });
+        const tx = VersionedTransaction.deserialize(Buffer.from(txSource.data));
+        tx.sign([keypair]);
+        txBase64 = Buffer.from(tx.serialize()).toString('base64');
+        const blockhash = tx.message.recentBlockhash;
+
+        // Simulate — Diagnostic mode: replaceRecentBlockhash allows us to see if 
+        // the logic is valid even if the blockhash is stale.
+        const simResp = await fetch(rpcUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jsonrpc: '2.0', id: '1', method: 'simulateTransaction',
+            params: [txBase64, { encoding: 'base64', replaceRecentBlockhash: true }],
+          }),
+        });
+        const simResult = await simResp.json();
+        const simErr = simResult.error || simResult.result?.value?.err;
+
+        if (!simErr) {
+          console.log(`[Buy API] Simulation logic VALID ✅ (ME Blockhash: ${blockhash})`);
+          break; // SUCCESS - exit loop
         }
 
-        // ME returns 'txSigned' for legacy listings, 'tx' for newer/USDC listings
-        const txData = data.txSigned || data.tx;
-        if (!txData) {
-            console.error('[Buy API] No transaction field in ME response:', JSON.stringify(data).slice(0, 300));
-            return NextResponse.json({ error: 'ME returned OK but no tx/txSigned field.', raw: data }, { status: 500 });
+        lastError = simResult.error?.message || JSON.stringify(simErr);
+        const simLogs = simResult.result?.value?.logs?.join('\n') || 'No logs';
+        console.warn(`[Buy API] Attempt ${attempt} simulation logic FAILED: ${lastError}\nLogs: ${simLogs.slice(0, 500)}`);
+
+        if (lastError.includes('BlockhashNotFound') && attempt < MAX_ATTEMPTS) {
+          console.log('[Buy API] Blockhash stale, waiting 1s to refresh ME state...');
+          await new Promise(r => setTimeout(r, 1000));
+          continue;
+        } else {
+          // If it's a real error (InsufficientFunds, etc.), stop and report it immediately
+          return NextResponse.json({ 
+            error: `Simulation failed: ${lastError}`, 
+            logs: simResult.result?.value?.logs?.join('\n')?.slice(0, 300) 
+          }, { status: 400 });
         }
-
-        console.log(`[Buy API] 🎉 Transaction received! Type: ${data.txSigned ? 'txSigned' : 'tx'}, bytes: ${txData?.data?.length}`);
-        return NextResponse.json({ txSigned: txData, v0: data.v0 });
-
-    } catch (e: any) {
-        console.error('[Buy API] Internal Error:', e);
-        return NextResponse.json({ error: e.message }, { status: 500 });
+      } catch (e: any) {
+        lastError = e.message;
+        if (attempt === MAX_ATTEMPTS) throw e;
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
+
+    if (!txBase64) return NextResponse.json({ error: `Failed after ${MAX_ATTEMPTS} attempts: ${lastError}` }, { status: 502 });
+
+    // ── Step 5: Submit via multiple paths for maximum reliability ────────────
+    console.log('[Buy API] Firing transaction via multi-path submission...');
+    const senderUrl = process.env.NEXT_PUBLIC_HELIUS_SENDER_URL || 'https://sender.helius-rpc.com/fast';
+    
+    // Fire to both regular RPC and Fast Sender simultaneously
+    const [fastResult, regResult] = await Promise.all([
+      fetch(senderUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: Date.now().toString(), method: 'sendTransaction',
+          params: [txBase64, { encoding: 'base64', skipPreflight: true }],
+        }),
+      }).then(r => r.json()).catch(e => ({ error: { message: e.message } })),
+      fetch(rpcUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0', id: Date.now().toString(), method: 'sendTransaction',
+          params: [txBase64, { encoding: 'base64', skipPreflight: true, maxRetries: 5 }],
+        }),
+      }).then(r => r.json()).catch(e => ({ error: { message: e.message } }))
+    ]);
+
+    const signature = fastResult.result || regResult.result;
+
+    if (!signature) {
+      const fastErr = fastResult.error?.message || JSON.stringify(fastResult.error);
+      const regErr = regResult.error?.message || JSON.stringify(regResult.error);
+      console.error(`[Buy API] SUBMISSION FAILED.\nFast: ${fastErr}\nRegular: ${regErr}`);
+      return NextResponse.json({ error: `Submission failed. Fast: ${fastErr}, Reg: ${regErr}` }, { status: 502 });
+    }
+
+    console.log(`[Buy API] ✅ Submitted: ${signature}`);
+    return NextResponse.json({ signature });
+
+  } catch (e: any) {
+    console.error('[Buy API] Error:', e.message, e.stack?.slice(0, 500));
+    return NextResponse.json({ error: e.message || 'Internal server error' }, { status: 500 });
+  }
 }

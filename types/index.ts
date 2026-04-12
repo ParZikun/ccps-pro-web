@@ -60,6 +60,29 @@ export interface Deal extends RedisACard {
   listing_timestamp: number;     // Date.now() epoch ms
   tier: Tier;
   seller: string;
+  isCompetitor?: boolean;
+  isCartel?: boolean;
+  manual_bid_value?: number | null;
+  source?: string;
+}
+
+export interface Holding {
+  token_mint: string;
+  name: string;
+  img_url: string | null;
+  grade: string;
+  grading_company: string;
+  buy_price_sol: number;
+  buy_price_usd: number;
+  buy_timestamp: number;
+  buy_signature: string;
+  listed_price_sol?: number;
+  listed_price_usd?: number;
+  listed_timestamp?: number;
+  listed_signature?: string;
+  status: 'held' | 'listed' | 'sold';
+  profit_sol?: number;
+  profit_usd?: number;
 }
 
 /**

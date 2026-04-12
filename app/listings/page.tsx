@@ -1,23 +1,54 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
-import { List, Search, ChevronLeft, ChevronRight, X, ExternalLink, TrendingDown, Clock, Shield, BarChart3, Star, MoreHorizontal } from 'lucide-react'
+import { List, Search, ChevronLeft, ChevronRight, X, ExternalLink, TrendingDown, Clock, Shield, BarChart3, Star, MoreHorizontal, SlidersHorizontal, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { getTierColor, formatUsd, formatSol, timeAgo, getConfidenceColor, truncate } from '@/lib/format'
 import type { Deal } from '@/types'
+import { Tier } from '@/types'
 import Image from 'next/image'
 
 const PAGE_SIZE = 10
+
+const SORT_OPTIONS = [
+  { value: 'listing_timestamp-desc', label: 'Newest First' },
+  { value: 'listing_timestamp-asc', label: 'Oldest First' },
+  { value: 'discount-desc', label: 'Discount ↓' },
+  { value: 'discount-asc', label: 'Discount ↑' },
+  { value: 'listing_price_usd-asc', label: 'Price: Low to High' },
+  { value: 'listing_price_usd-desc', label: 'Price: High to Low' },
+  { value: 'alt_value-desc', label: 'Alt Value ↓' },
+]
+
+const TIER_OPTIONS = [
+  { value: 'ALL', label: 'All Tiers' },
+  { value: Tier.GOLD, label: 'Gold' },
+  { value: Tier.SILVER, label: 'Silver' },
+  { value: Tier.BRONZE, label: 'Bronze' },
+  { value: Tier.IRON, label: 'Iron' },
+  { value: Tier.SUSPICIOUS, label: 'Suspicious' },
+]
+
+const DISCOUNT_OPTIONS = [
+  { value: 'ALL', label: 'Any Discount' },
+  { value: '30', label: '≥30%' },
+  { value: '20', label: '≥20%' },
+  { value: '10', label: '≥10%' },
+]
 
 export default function ListingsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
+  const [showFilters, setShowFilters] = useState(false)
   
   const [allDeals, setAllDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [watchingMints, setWatchingMints] = useState<Set<string>>(new Set())
 
-  // Debounce search
+  const [sortBy, setSortBy] = useState('listing_timestamp-desc')
+  const [tierFilter, setTierFilter] = useState('ALL')
+  const [discountFilter, setDiscountFilter] = useState('ALL')
+
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchQuery), 400)
@@ -37,7 +68,7 @@ export default function ListingsPage() {
         const res = await fetch(`/api/deals?${urlParams.toString()}`)
         const data = await res.json()
         setAllDeals(data.deals || [])
-        setPage(1) // reset to page 1 on new search
+        setPage(1)
       } catch (err) {
         console.error(err)
       } finally {
@@ -46,6 +77,54 @@ export default function ListingsPage() {
     }
     fetchListings()
   }, [debouncedSearch])
+
+  const filteredAndSortedDeals = useMemo(() => {
+    let result = [...allDeals]
+
+    if (tierFilter !== 'ALL') {
+      result = result.filter(d => d.tier === tierFilter)
+    }
+
+    if (discountFilter !== 'ALL') {
+      const minDiscount = parseFloat(discountFilter)
+      result = result.filter(d => {
+        if (!d.alt_value || d.alt_value <= 0) return false
+        const discount = ((d.alt_value - d.listing_price_usd) / d.alt_value) * 100
+        return discount >= minDiscount
+      })
+    }
+
+    const [sortField, sortDir] = sortBy.split('-')
+    result.sort((a, b) => {
+      let valA: number, valB: number
+      
+      switch (sortField) {
+        case 'listing_timestamp':
+          valA = a.listing_timestamp || 0
+          valB = b.listing_timestamp || 0
+          break
+        case 'discount':
+          valA = a.alt_value ? ((a.alt_value - a.listing_price_usd) / a.alt_value) * 100 : 0
+          valB = b.alt_value ? ((b.alt_value - b.listing_price_usd) / b.alt_value) * 100 : 0
+          break
+        case 'listing_price_usd':
+          valA = a.listing_price_usd || 0
+          valB = b.listing_price_usd || 0
+          break
+        case 'alt_value':
+          valA = a.alt_value || 0
+          valB = b.alt_value || 0
+          break
+        default:
+          valA = a.listing_timestamp || 0
+          valB = b.listing_timestamp || 0
+      }
+      
+      return sortDir === 'asc' ? valA - valB : valB - valA
+    })
+
+    return result
+  }, [allDeals, tierFilter, discountFilter, sortBy])
 
   const toggleWatchlist = async (mint: string, e: React.MouseEvent) => {
     e.stopPropagation()
@@ -67,8 +146,14 @@ export default function ListingsPage() {
     } catch {}
   }
 
-  const totalPages = Math.max(1, Math.ceil(allDeals.length / PAGE_SIZE))
-  const paginatedDeals = allDeals.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const totalPages = Math.max(1, Math.ceil(filteredAndSortedDeals.length / PAGE_SIZE))
+  const paginatedDeals = filteredAndSortedDeals.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
+  const activeFiltersCount = [
+    tierFilter !== 'ALL',
+    discountFilter !== 'ALL',
+    searchQuery.length > 0
+  ].filter(Boolean).length
   
   // Smart pagination logic
   const getPaginationGroup = () => {
@@ -96,7 +181,8 @@ export default function ListingsPage() {
           <div>
             <h1 className="text-2xl font-bold text-white tracking-tight">All Listings</h1>
             <p className="text-sm text-gray-400">
-              Full pipeline — <span className="text-blue-400 font-mono font-bold">{allDeals.length}</span> webhook events
+              <span className="text-blue-400 font-mono font-bold">{filteredAndSortedDeals.length}</span> of {allDeals.length} listings
+              {activeFiltersCount > 0 && <span className="text-yellow-400 ml-2">({activeFiltersCount} filter{activeFiltersCount > 1 ? 's' : ''} active)</span>}
               <span className="text-[10px] text-green-500 font-mono bg-green-500/10 px-2 py-0.5 rounded-full border border-green-500/20 ml-2">
                 Live Data
               </span>
@@ -104,18 +190,112 @@ export default function ListingsPage() {
           </div>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Filter by name..."
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
-            className="bg-surface border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/30 transition-colors w-56"
-          />
+        {/* Controls */}
+        <div className="flex items-center gap-2">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search name..."
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setPage(1) }}
+              className="bg-surface border border-white/10 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-blue-500/30 transition-colors w-44"
+            />
+          </div>
+
+          {/* Sort Dropdown */}
+          <select
+            value={sortBy}
+            onChange={(e) => { setSortBy(e.target.value); setPage(1) }}
+            className="bg-surface border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500/30 cursor-pointer hover:bg-white/5"
+          >
+            {SORT_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+
+          {/* Filter Toggle */}
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              showFilters || activeFiltersCount > 0
+                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                : 'bg-surface border border-white/10 text-gray-400 hover:text-white'
+            }`}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            Filters
+            {activeFiltersCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </button>
+
+          {/* Clear Filters */}
+          {activeFiltersCount > 0 && (
+            <button
+              onClick={() => {
+                setTierFilter('ALL')
+                setDiscountFilter('ALL')
+                setSearchQuery('')
+                setSortBy('listing_timestamp-desc')
+                setPage(1)
+              }}
+              className="px-2 py-2 text-xs text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+              title="Clear all filters"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="bg-surface rounded-xl border border-white/10 p-4 flex flex-wrap gap-6">
+          {/* Tier Filter */}
+          <div className="space-y-2">
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Tier</label>
+            <div className="flex flex-wrap gap-2">
+              {TIER_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setTierFilter(opt.value); setPage(1) }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    tierFilter === opt.value
+                      ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                      : 'bg-black/30 text-gray-400 border border-white/5 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Discount Filter */}
+          <div className="space-y-2">
+            <label className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Discount</label>
+            <div className="flex flex-wrap gap-2">
+              {DISCOUNT_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setDiscountFilter(opt.value); setPage(1) }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    discountFilter === opt.value
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      : 'bg-black/30 text-gray-400 border border-white/5 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Data Table */}
       <div className="bg-surface rounded-xl border border-white/5 overflow-hidden">
@@ -245,7 +425,7 @@ export default function ListingsPage() {
         {/* Pagination */}
         <div className="flex items-center justify-between px-4 py-3 border-t border-white/5 bg-black/10">
           <p className="text-[10px] text-gray-500 font-mono">
-            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, allDeals.length)} of {allDeals.length}
+            Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredAndSortedDeals.length)} of {filteredAndSortedDeals.length}
           </p>
           <div className="flex items-center gap-1">
             <button

@@ -1,16 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
-import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
+import { useMemo, ReactNode, createElement } from 'react'
+import { ConnectionProvider as BaseConnectionProvider, WalletProvider as BaseWalletProvider } from '@solana/wallet-adapter-react'
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui'
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare'
 
 import '@solana/wallet-adapter-react-ui/styles.css'
 
-export function SolanaProvider({ children }: { children: React.ReactNode }) {
-  // Use public mainnet RPC as fallback
-  // Use Helius RPC for reliable V0 transaction submission
+const ConnectionProvider = BaseConnectionProvider as React.ComponentType<{ endpoint: string; children?: ReactNode }>
+const WalletProvider = BaseWalletProvider as React.ComponentType<{ wallets: any[]; autoConnect: boolean; children?: ReactNode }>
+const WalletModalProviderC = WalletModalProvider as React.ComponentType<{ children?: ReactNode }>
+
+export function SolanaProvider({ children }: { children: ReactNode }) {
   const endpoint = process.env.NEXT_PUBLIC_RPC_URL || 'https://api.mainnet-beta.solana.com'
 
   const wallets = useMemo(
@@ -21,11 +23,13 @@ export function SolanaProvider({ children }: { children: React.ReactNode }) {
     []
   )
 
-  return (
-    <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>{children}</WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
+  return createElement(
+    ConnectionProvider,
+    { endpoint },
+    createElement(
+      WalletProvider,
+      { wallets, autoConnect: true },
+      createElement(WalletModalProviderC, {}, children)
+    )
   )
 }
