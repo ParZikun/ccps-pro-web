@@ -160,7 +160,12 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
 
         <div className="space-y-4">
           <div className="space-y-1">
-            <h2 className="text-xl font-black text-white leading-tight uppercase tracking-tight">{deal.name}</h2>
+            <div className="flex items-center gap-2">
+               <h2 className="text-xl font-black text-white leading-tight uppercase tracking-tight">{deal.name}</h2>
+               {deal.is_orphan && (
+                 <AlertTriangle className="w-5 h-5 text-yellow-500 animate-pulse" title="Missing Market Data" />
+               )}
+            </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
                <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black border ${tierColor.bg} ${tierColor.text} ${tierColor.border} backdrop-blur-md shadow-lg`}>
                  {deal.tier}
@@ -267,10 +272,10 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
           />
           <HighDensityMetric 
             label="Alt Valuation" 
-            value={formatUsd(deal.alt_value)} 
-            sub={deal.alt_lower_bound ? `${formatUsd(deal.alt_lower_bound)} — ${formatUsd(deal.alt_upper_bound)}` : "Basis Point"} 
+            value={deal.alt_value ? formatUsd(deal.alt_value) : "UNPRICED"} 
+            sub={deal.alt_lower_bound ? `${formatUsd(deal.alt_lower_bound)} — ${formatUsd(deal.alt_upper_bound)}` : (deal.is_orphan ? "No Market Data" : "Basis Point")} 
             icon={Target} 
-            color="text-accent-gold" 
+            color={deal.is_orphan ? "text-gray-500" : "text-accent-gold"} 
           />
           <HighDensityMetric 
             label="Cartel Benchmark" 
@@ -364,16 +369,28 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
               <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> Market Intensity vs Cartel Trend
             </h3>
+            {deal.is_orphan && (
+              <span className="text-[9px] text-yellow-500 font-black uppercase bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">
+                Visual Pulse Disabled (Missing Data)
+              </span>
+            )}
           </div>
-          <div className="bg-black/40 rounded-xl border border-white/5 p-2">
-            <PriceChart 
-              data={chartData} 
-              cartelHistory={deal.cartel_avg_history}
-              cartelAvg={deal.cartel_avg} 
-              currentPrice={isListed ? deal.listing_price_usd : 0}
-              manualBid={manualBid ? parseFloat(manualBid as string) : undefined}
-              color="#3b82f6" 
-            />
+          <div className="bg-black/40 rounded-xl border border-white/5 p-2 min-h-[200px] flex items-center justify-center">
+            {deal.is_orphan ? (
+              <div className="text-center space-y-2 opacity-40">
+                <Ghost className="w-8 h-8 mx-auto text-gray-600" />
+                <p className="text-[10px] font-black uppercase tracking-tighter">No historical signals found for this asset</p>
+              </div>
+            ) : (
+              <PriceChart 
+                data={chartData} 
+                cartelHistory={deal.cartel_avg_history}
+                cartelAvg={deal.cartel_avg} 
+                currentPrice={isListed ? deal.listing_price_usd : 0}
+                manualBid={manualBid ? parseFloat(manualBid as string) : undefined}
+                color="#3b82f6" 
+              />
+            )}
           </div>
         </div>
 

@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { X, LayoutDashboard, Croissant, List, Star, Search, Settings, Target, Wallet } from 'lucide-react'
+import { X, LayoutDashboard, Croissant, List, Star, Search, Settings, Target, Wallet, Ghost } from 'lucide-react'
 import { useUI } from '@/context/UIContext'
 import Image from 'next/image'
 
@@ -13,6 +13,7 @@ const navigation = [
   { name: 'Watchlist', href: '/watchlist', icon: Star, description: 'Tracked cards' },
   { name: 'Holdings', href: '/holdings', icon: Wallet, description: 'Portfolio status' },
   { name: 'Card Search', href: '/search', icon: Search, description: 'Browse Redis A' },
+  { name: 'Orphan Terminal', href: '/orphans', icon: Ghost, description: 'No Alt market data' },
   { name: 'Competitor Snipes', href: '/competitors', icon: Target, description: 'Tracked wallets' },
 ]
 
