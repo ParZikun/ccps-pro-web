@@ -9,11 +9,12 @@ interface PriceChartProps {
   cartelHistory?: Array<{ date: string; price: number }>
   cartelAvg?: number
   currentPrice?: number
+  currentAltPrice?: number
   manualBid?: number
   color?: string
 }
 
-export default function PriceChart({ data, cartelHistory, cartelAvg, currentPrice, manualBid, color = '#3b82f6' }: PriceChartProps) {
+export default function PriceChart({ data, cartelHistory, cartelAvg, currentPrice, currentAltPrice, manualBid, color = '#3b82f6' }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
 
@@ -137,6 +138,18 @@ export default function PriceChart({ data, cartelHistory, cartelAvg, currentPric
         lineStyle: 1, // Dotted
         axisLabelVisible: true,
         title: 'CARTEL AVG',
+      })
+    }
+
+    // 2.5 Alt Valuation Baseline (Matching blue series)
+    if (currentAltPrice) {
+      areaSeries.createPriceLine({
+        price: currentAltPrice,
+        color: '#3b82f6',
+        lineWidth: 1,
+        lineStyle: 1, // Dotted
+        axisLabelVisible: true,
+        title: 'ALT RESEARCH',
       })
     }
 

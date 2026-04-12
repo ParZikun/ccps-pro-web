@@ -17,6 +17,7 @@ export default function DealsPage() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [ownerGroup, setOwnerGroup] = useState('ALL')
   
   // Use debounced search text to avoid spamming the API
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
@@ -50,7 +51,12 @@ export default function DealsPage() {
         const data = await res.json()
         
         // Final safety filter: Remove Tier.NONE from Active Deals
-        const validDeals = (data.deals || []).filter((d: Deal) => d.tier !== Tier.NONE && d.tier !== 'NONE')
+        const validDeals = (data.deals || []).filter((d: Deal) => {
+          if (d.tier === Tier.NONE || d.tier === 'NONE') return false
+          if (ownerGroup === 'CARTEL' && d.owner_tag !== 'Cartel Member') return false
+          if (ownerGroup === 'MFERS' && d.owner_tag !== 'Mfer') return false
+          return true
+        })
         setDeals(validDeals)
       } catch (err: any) {
         setError(err.message)
@@ -59,7 +65,7 @@ export default function DealsPage() {
       }
     }
     fetchDeals()
-  }, [selectedTier, sortValue, debouncedSearch])
+  }, [selectedTier, sortValue, debouncedSearch, ownerGroup])
 
   // Count deals per tier locally for the active list
   const tierCounts = useMemo(() => {
@@ -108,6 +114,30 @@ export default function DealsPage() {
             />
           </div>
           <SortDropdown value={sortValue} onChange={setSortValue} />
+        </div>
+      </div>
+
+      {/* Tactical Owner Filter */}
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Technical Group:</span>
+        <div className="flex gap-1">
+          {[
+            { value: 'ALL', label: 'All Owners' },
+            { value: 'CARTEL', label: 'My Cartel', color: 'bg-accent-gold/20 text-accent-gold border-accent-gold/30' },
+            { value: 'MFERS', label: 'Mfers', color: 'bg-red-500/20 text-red-400 border-red-500/30' }
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setOwnerGroup(opt.value)}
+              className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                ownerGroup === opt.value
+                  ? opt.color || 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                  : 'bg-black/30 text-gray-400 border border-white/5 hover:text-white'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 

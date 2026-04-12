@@ -39,7 +39,16 @@ export default function DealCard({ deal, priority = false }: DealCardProps) {
                 <span className="text-[11px] font-bold text-white truncate max-w-[200px] group-hover:text-accent-gold transition-colors">{deal.name}</span>
                 <CopyButton text={deal.token_mint} className="opacity-0 group-hover:opacity-100" iconSize={10} />
              </div>
-             <p className="text-[10px] text-gray-500 font-mono uppercase tracking-tighter">{deal.grading_company} {deal.grade} · {deal.token_mint.slice(0, 8)}</p>
+              <p className="text-[10px] text-gray-500 font-mono uppercase tracking-tighter">
+                {deal.grading_company} {deal.grade} · {deal.token_mint.slice(0, 8)}
+                {deal.owner_tag && (
+                  <span className={`ml-2 px-1.5 py-0.5 rounded-[2px] text-[8px] font-black uppercase ${
+                    deal.owner_tag === 'Cartel Member' ? 'bg-accent-gold/10 text-accent-gold border border-accent-gold/20' : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                  }`}>
+                    {deal.owner_tag}
+                  </span>
+                )}
+              </p>
           </div>
 
           <div className="col-span-2 text-right">
@@ -102,9 +111,17 @@ export default function DealCard({ deal, priority = false }: DealCardProps) {
         </div>
 
         {/* Badges */}
-        <div className="absolute top-2 right-2 z-10 flex flex-col gap-1 items-end">
-           {deal.isCartel && <div className="px-1.5 py-0.5 rounded text-[7px] font-black bg-red-600 text-white shadow-xl uppercase">Cartel</div>}
-           {deal.isCompetitor && <div className="px-1.5 py-0.5 rounded text-[7px] font-black bg-orange-600 text-white shadow-xl uppercase">Rival</div>}
+        <div className="absolute top-2 right-2 z-30 flex flex-col gap-1 items-end pt-2">
+           {deal.owner_tag === 'Cartel Member' && (
+             <div className="px-2 py-0.5 rounded text-[8px] font-black bg-accent-gold text-black shadow-[0_0_10px_rgba(255,215,0,0.3)] uppercase border border-accent-gold/40">
+               Cartel Member
+             </div>
+           )}
+           {deal.owner_tag === 'Mfer' && (
+             <div className="px-2 py-0.5 rounded text-[8px] font-black bg-red-600 text-white shadow-xl uppercase border border-red-500/40">
+               Mfer
+             </div>
+           )}
         </div>
       </div>
 

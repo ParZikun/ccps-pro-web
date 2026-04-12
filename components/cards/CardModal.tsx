@@ -97,8 +97,10 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
   const isListed = deal.listing_price_sol > 0 && !!deal.seller
   
   // Logic: (Alt Value * 0.85) - Listed Price
+  // Prefer Manual Bid Override if set
   const buybackMultiplier = 0.85
-  const buybackValue = (deal.alt_value || 0) * buybackMultiplier
+  const effectiveMaxBid = manualBid ? parseFloat(manualBid as string) : (deal.alt_value || 0) * buybackMultiplier
+  const buybackValue = effectiveMaxBid 
   const netProfit = isListed ? (buybackValue - deal.listing_price_usd) : 0
   const profitMargin = (isListed && buybackValue > 0 && deal.listing_price_usd > 0) ? (netProfit / deal.listing_price_usd) * 100 : 0
   
@@ -275,14 +277,14 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
             value={deal.alt_value ? formatUsd(deal.alt_value) : "UNPRICED"} 
             sub={deal.alt_lower_bound ? `${formatUsd(deal.alt_lower_bound)} — ${formatUsd(deal.alt_upper_bound)}` : (deal.is_orphan ? "No Market Data" : "Basis Point")} 
             icon={Target} 
-            color={deal.is_orphan ? "text-gray-500" : "text-accent-gold"} 
+            color={deal.is_orphan ? "text-gray-500" : "text-blue-400"} 
           />
           <HighDensityMetric 
             label="Cartel Benchmark" 
             value={formatUsd(deal.cartel_avg || 0)} 
             sub="Neural Mean" 
             icon={Shield} 
-            color="text-blue-400" 
+            color="text-accent-gold" 
           />
         </div>
 
@@ -386,6 +388,7 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
                 data={chartData} 
                 cartelHistory={deal.cartel_avg_history}
                 cartelAvg={deal.cartel_avg} 
+                currentAltPrice={deal.alt_value}
                 currentPrice={isListed ? deal.listing_price_usd : 0}
                 manualBid={manualBid ? parseFloat(manualBid as string) : undefined}
                 color="#3b82f6" 

@@ -44,6 +44,7 @@ export default function SearchPage() {
   const [sortBy, setSortBy] = useState('alt_value-desc')
   const [showOnlyHighValue, setShowOnlyHighValue] = useState(false)
   const [showOnlyHighConfidence, setShowOnlyHighConfidence] = useState(false)
+  const [ownerGroup, setOwnerGroup] = useState('ALL')
 
   useEffect(() => {
     fetch('/api/analytics/dashboard')
@@ -125,6 +126,8 @@ export default function SearchPage() {
       if (gradingCompany !== 'ALL' && !card.grading_company?.toUpperCase().includes(gradingCompany)) return false
       if (showOnlyHighValue && val < 100) return false
       if (showOnlyHighConfidence && (card.alt_confidence || 0) < 80) return false
+      if (ownerGroup === 'CARTEL' && card.owner_tag !== 'Cartel Member') return false
+      if (ownerGroup === 'MFERS' && card.owner_tag !== 'Mfer') return false
       return true
     })
 
@@ -163,7 +166,7 @@ export default function SearchPage() {
     })
 
     return cards
-  }, [results, featuredCards, hasSearched, minPrice, maxPrice, gradingCompany, sortBy, showOnlyHighValue, showOnlyHighConfidence])
+  }, [results, featuredCards, hasSearched, minPrice, maxPrice, gradingCompany, sortBy, showOnlyHighValue, showOnlyHighConfidence, ownerGroup])
 
   const activeFiltersCount = [
     minPrice,
@@ -229,6 +232,7 @@ export default function SearchPage() {
                 setGradingCompany('ALL')
                 setShowOnlyHighValue(false)
                 setShowOnlyHighConfidence(false)
+                setOwnerGroup('ALL')
               }}
               className="p-2 text-xs text-gray-500 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
               title="Clear all filters"
@@ -291,6 +295,29 @@ export default function SearchPage() {
               <Shield className="w-3 h-3" />
               80%+ Conf
             </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Tactical Group:</span>
+            <div className="flex gap-1">
+              {[
+                { value: 'ALL', label: 'All Owners' },
+                { value: 'CARTEL', label: 'My Cartel', color: 'bg-accent-gold/20 text-accent-gold border-accent-gold/30' },
+                { value: 'MFERS', label: 'Mfers', color: 'bg-red-500/20 text-red-400 border-red-500/30' }
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setOwnerGroup(opt.value)}
+                  className={`px-2.5 py-1 rounded text-[10px] font-medium transition-colors ${
+                    ownerGroup === opt.value
+                      ? opt.color || 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+                      : 'bg-black/30 text-gray-400 border border-white/5 hover:text-white'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}

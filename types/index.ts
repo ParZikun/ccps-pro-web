@@ -45,6 +45,8 @@ export interface RedisACard {
   cartel_avg: number;
   cartel_avg_history: Array<{ date: string; price: number }>;
   is_orphan?: boolean;
+  owner_tag?: "Cartel Member" | "Mfer" | null;
+  owner_address?: string | null;
   timestamp: string;             // CDT ISO timestamp
 }
 
