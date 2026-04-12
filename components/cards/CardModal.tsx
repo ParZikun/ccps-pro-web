@@ -7,7 +7,7 @@ import { X, ExternalLink, Croissant, TrendingUp, DollarSign, Calculator, Info, S
 import { useUI } from '@/context/UIContext'
 import Image from 'next/image'
 import PriceChart from '@/components/charts/PriceChart'
-import { formatUsd, formatSol, getTierColor } from '@/lib/format'
+import { formatUsd, formatSol, getTierColor, getConfidenceColor, timeAgo } from '@/lib/format'
 import { toast } from 'sonner'
 import { useConnection } from '@solana/wallet-adapter-react'
 
@@ -86,10 +86,10 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
         }
         
         return {
-          time: timeStr,
-          value: Number(s.price || s.alt_value || s.value || 0)
+          date: timeStr,
+          price: Number(s.price || s.alt_value || s.value || 0)
         };
-      }).sort((a: any, b: any) => a.time.localeCompare(b.time))
+      }).sort((a: any, b: any) => a.date.localeCompare(b.date))
     }
     // Fallback if no history
     return [{ time: new Date().toISOString().split('T')[0], value: deal.alt_value || 0 }]
@@ -174,9 +174,40 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
             </div>
           </div>
 
+          {/* Intelligence Profile Block */}
+          <div className="pt-4 border-t border-white/5 space-y-4">
+             <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest opacity-60">Total Pop</p>
+                   <p className="text-sm font-black text-white font-mono">{deal.supply ? deal.supply.toLocaleString() : 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest opacity-60">Insured Value</p>
+                   <p className="text-sm font-black text-purple-400 font-mono">{formatUsd(deal.insured_value)}</p>
+                </div>
+             </div>
+             
+             <div className="space-y-1">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest opacity-60">Valuation Confidence</p>
+                <div className="flex items-center gap-2">
+                   <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                      <div className={`h-full ${getConfidenceColor(deal.alt_confidence).bg.replace('bg-', 'bg-').split(' ')[0]} transition-all`} style={{ width: `${deal.alt_confidence || 0}%` }} />
+                   </div>
+                   <span className={`text-[10px] font-black font-mono ${getConfidenceColor(deal.alt_confidence).text}`}>
+                      {(deal.alt_confidence || 0).toFixed(1)}%
+                   </span>
+                </div>
+             </div>
+
+             <div className="flex items-center justify-between pt-2 border-t border-white/[0.02]">
+                <span className="text-[10px] text-gray-400 font-black uppercase opacity-60">Last Signal Update</span>
+                <span className="text-[10px] text-gray-500 font-bold">{timeAgo(deal.timestamp).toUpperCase()}</span>
+             </div>
+          </div>
+
           <div className="pt-4 border-t border-white/5 space-y-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Token Mint Address</label>
+              <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest opacity-60">Token Mint Address</label>
               <div className="flex items-center gap-2 bg-black/40 p-2 rounded border border-white/5 group">
                 <code className="text-[9px] text-gray-400 truncate flex-1">{deal.token_mint}</code>
                 <button onClick={() => { navigator.clipboard.writeText(deal.token_mint); toast.success('Address copied') }} className="text-gray-600 hover:text-white transition-colors">
@@ -225,17 +256,63 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
       {/* Right Column: Dynamic Data Hub */}
       <div className="lg:w-[68%] p-6 lg:p-8 flex flex-col space-y-6 overflow-y-auto custom-scrollbar">
         {/* Metric Grid Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <HighDensityMetric label="Listing Price" value={isListed ? formatUsd(deal.listing_price_usd) : "NOT LISTED"} sub={isListed ? `${(deal.listing_price_sol || 0).toFixed(2)} SOL` : "N/A"} icon={DollarSign} color={isListed ? "text-white" : "text-red-400"} />
-          <HighDensityMetric label="Alt Value" value={formatUsd(deal.alt_value)} sub={`${deal.alt_confidence}% Conf.`} icon={Target} color="text-accent-gold" />
-          <HighDensityMetric label="Cartel Avg" value={formatUsd(deal.cartel_avg || 0)} sub="System Benchmark" icon={Shield} color="text-blue-400" />
-          <HighDensityMetric label="Net Discount" value={isListed ? `${discount.toFixed(1)}%` : "N/A"} sub={isListed ? (discount > 0 ? "Below Market" : "Premium") : "Asset Inactive"} icon={TrendingUp} color={isListed && discount > 25 ? "text-green-400" : "text-gray-400"} />
+        {/* Primary Economics Hub */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <HighDensityMetric 
+            label="Listing Price" 
+            value={isListed ? formatUsd(deal.listing_price_usd) : "NOT LISTED"} 
+            sub={isListed ? `${(deal.listing_price_sol || 0).toFixed(2)} SOL` : "Asset Discovery"} 
+            icon={DollarSign} 
+            color={isListed ? "text-white" : "text-red-400"} 
+          />
+          <HighDensityMetric 
+            label="Alt Valuation" 
+            value={formatUsd(deal.alt_value)} 
+            sub={deal.alt_lower_bound ? `${formatUsd(deal.alt_lower_bound)} — ${formatUsd(deal.alt_upper_bound)}` : "Basis Point"} 
+            icon={Target} 
+            color="text-accent-gold" 
+          />
+          <HighDensityMetric 
+            label="Cartel Benchmark" 
+            value={formatUsd(deal.cartel_avg || 0)} 
+            sub="Neural Mean" 
+            icon={Shield} 
+            color="text-blue-400" 
+          />
+        </div>
+
+        {/* Execution Performance Strip */}
+        <div className="bg-white/[0.03] border border-white/5 rounded-xl p-1 flex items-stretch divide-x divide-white/5">
+           <PerformanceNode 
+             label="Max Execution Bid" 
+             value={formatUsd(deal.max_buy_price || 0)} 
+             icon={<Target className="w-3 h-3" />}
+             color="text-white"
+           />
+           <PerformanceNode 
+             label="Projected Net Yield" 
+             value={formatUsd(netProfit)} 
+             icon={<TrendingUp className="w-3 h-3" />}
+             color="text-purple-400"
+           />
+           <PerformanceNode 
+             label="Est. Return %" 
+             value={isListed ? `${profitMargin.toFixed(1)}%` : "N/A"} 
+             icon={<DollarSign className="w-3 h-3" />}
+             color={profitMargin > 15 ? "text-green-400" : "text-gray-400"}
+           />
+           <PerformanceNode 
+             label="Market Discount" 
+             value={isListed ? `${discount.toFixed(1)}%` : "N/A"} 
+             icon={<TrendingUp className="w-3 h-3" />}
+             color={discount > 25 ? "text-accent-gold" : "text-gray-600"}
+           />
         </div>
 
         {/* Technical Data & Manual Control */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-4">
-             <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
                 <Calculator className="w-3.5 h-3.5 text-accent-gold" /> Transaction Forecast
              </h3>
              <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-3">
@@ -250,7 +327,7 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
           </div>
 
           <div className="space-y-4">
-             <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+             <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
                 <Shield className="w-3.5 h-3.5 text-purple-400" /> Card Buy Override
              </h3>
              <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-4 flex flex-col justify-center gap-3">
@@ -284,13 +361,14 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
         {/* Price History Visualization */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-              <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> Market Intensity vs System Benchmark
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
+              <BarChart3 className="w-3.5 h-3.5 text-blue-400" /> Market Intensity vs Cartel Trend
             </h3>
           </div>
           <div className="bg-black/40 rounded-xl border border-white/5 p-2">
             <PriceChart 
               data={chartData} 
+              cartelHistory={deal.cartel_avg_history}
               cartelAvg={deal.cartel_avg} 
               currentPrice={isListed ? deal.listing_price_usd : 0}
               manualBid={manualBid ? parseFloat(manualBid as string) : undefined}
@@ -315,6 +393,18 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
   )
 }
 
+function PerformanceNode({ label, value, icon, color }: any) {
+  return (
+    <div className="flex-1 p-3 flex flex-col items-center justify-center text-center space-y-1 group hover:bg-white/[0.02] transition-colors">
+       <div className="flex items-center gap-1.5 opacity-60 group-hover:opacity-100 transition-opacity">
+          {icon}
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-tighter">{label}</span>
+       </div>
+       <p className={`text-sm font-black tabular-nums ${color} tracking-tight`}>{value}</p>
+    </div>
+  )
+}
+
 function FeeRow({ label, sol, usd }: any) {
   return (
     <div className="flex items-center justify-between">
@@ -330,11 +420,11 @@ function FeeRow({ label, sol, usd }: any) {
 function HighDensityMetric({ label, value, sub, icon: Icon, color }: any) {
   return (
     <div className="p-3 bg-white/5 border border-white/5 rounded-xl hover:bg-white/[0.07] transition-colors">
-      <p className="text-[8px] text-gray-600 uppercase font-black tracking-tighter flex items-center gap-1.5 mb-1.5">
-        <Icon className="w-2.5 h-2.5" /> {label}
+      <p className="text-[10px] text-gray-400 uppercase font-black tracking-tight flex items-center gap-1.5 mb-1.5 opacity-60">
+        <Icon className="w-3 h-3" /> {label}
       </p>
       <p className={`text-sm font-black transition-colors ${color}`}>{value}</p>
-      <p className="text-[9px] text-gray-600 font-bold tabular-nums mt-0.5">{sub}</p>
+      <p className="text-[10px] text-gray-500 font-bold tabular-nums mt-0.5">{sub}</p>
     </div>
   )
 }

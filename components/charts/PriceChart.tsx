@@ -1,18 +1,19 @@
 'use client'
 
 import { useRef, useEffect } from 'react'
-import { createChart, ColorType, AreaSeries } from 'lightweight-charts'
+import { createChart, ColorType, AreaSeries, LineSeries } from 'lightweight-charts'
 import type { IChartApi } from 'lightweight-charts'
 
 interface PriceChartProps {
   data: Array<{ date: string; price: number }>
+  cartelHistory?: Array<{ date: string; price: number }>
   cartelAvg?: number
   currentPrice?: number
   manualBid?: number
   color?: string
 }
 
-export default function PriceChart({ data, cartelAvg, currentPrice, manualBid, color = '#3b82f6' }: PriceChartProps) {
+export default function PriceChart({ data, cartelHistory, cartelAvg, currentPrice, manualBid, color = '#3b82f6' }: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
 
@@ -73,7 +74,14 @@ export default function PriceChart({ data, cartelAvg, currentPrice, manualBid, c
       priceFormat: { type: 'price', precision: 0, minMove: 1 },
     })
 
-    const sortedData = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    // Sanitize and sort data: Filter out entries with invalid dates to prevent chart breakage
+    const validData = data.filter(item => {
+      if (!item.date) return false
+      const d = new Date(item.date)
+      return !isNaN(d.getTime())
+    })
+    
+    const sortedData = [...validData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     
     // Deduplicate by timestamp (Keep the latest price if multiple sales on same date/time)
     const uniqueDataMap = new Map<number, number>()
@@ -89,6 +97,35 @@ export default function PriceChart({ data, cartelAvg, currentPrice, manualBid, c
 
     if (chartData.length > 0) {
       areaSeries.setData(chartData)
+    }
+
+    // 1.5 Secondary: Cartel Trend (Yellow Line)
+    if (cartelHistory && cartelHistory.length > 0) {
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: '#fbbf24',
+        lineWidth: 2,
+        priceFormat: { type: 'price', precision: 0, minMove: 1 },
+      })
+      
+      const vHistory = cartelHistory.filter(item => {
+        if (!item.date) return false
+        const d = new Date(item.date)
+        return !isNaN(d.getTime())
+      })
+      
+      const sortedHistory = [...vHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const uniqueHistoryMap = new Map<number, number>()
+      sortedHistory.forEach(item => {
+        const time = Math.floor(new Date(item.date).getTime() / 1000)
+        uniqueHistoryMap.set(time, item.price)
+      })
+      
+      const lineData = Array.from(uniqueHistoryMap.entries()).map(([time, value]) => ({
+        time: time as any,
+        value
+      })).sort((a, b) => (a.time as number) - (b.time as number))
+      
+      lineSeries.setData(lineData)
     }
 
     // 2. Cartel Average Baseline
@@ -136,13 +173,13 @@ export default function PriceChart({ data, cartelAvg, currentPrice, manualBid, c
       window.removeEventListener('resize', handleResize)
       chart.remove()
     }
-  }, [data, cartelAvg, currentPrice, manualBid, color])
+  }, [data, cartelHistory, cartelAvg, currentPrice, manualBid, color])
 
   return (
     <div className="w-full relative group">
       <div className="absolute top-2 left-6 z-10 flex gap-4 text-[9px] font-black uppercase tracking-widest">
         <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> <span className="text-gray-400">Alt Research</span></div>
-        {cartelAvg && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-yellow-400" /> <span className="text-gray-400">Cartel Avg</span></div>}
+        {(cartelAvg || cartelHistory) && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-yellow-400" /> <span className="text-gray-400">Cartel Trend</span></div>}
         {manualBid && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> <span className="text-gray-400">Manual Bid</span></div>}
       </div>
       <div ref={chartContainerRef} className="w-full" />

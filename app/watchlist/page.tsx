@@ -8,7 +8,6 @@ import type { WatchlistItem } from '@/types'
 import { useEffect } from 'react'
 import Image from 'next/image'
 import Sparkline from '@/components/ui/Sparkline'
-import CardDetailPanel from '@/components/panels/CardDetailPanel'
 
 export default function WatchlistPage() {
   const { openDealModal } = useUI()

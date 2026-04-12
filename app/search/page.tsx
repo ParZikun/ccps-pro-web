@@ -5,7 +5,7 @@ import { Search as SearchIcon, Loader, AlertCircle, ExternalLink, Shield, BarCha
 import Image from 'next/image'
 import { formatUsd, getConfidenceColor, truncate } from '@/lib/format'
 import Sparkline from '@/components/ui/Sparkline'
-import CardDetailPanel from '@/components/panels/CardDetailPanel'
+import { useUI } from '@/context/UIContext'
 import type { RedisACard } from '@/types'
 
 const GRADE_ORDER = ['10', '9.5', '9', '8.5', '8', '7.5', '7', '6.5', '6', '5.5', '5', '4.5', '4', '3.5', '3', '2.5', '2', '1.5', '1']
@@ -26,13 +26,13 @@ const COMPANY_OPTIONS = [
 ]
 
 export default function SearchPage() {
+  const { openDealModal } = useUI()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<RedisACard[]>([])
   const [featuredCards, setFeaturedCards] = useState<RedisACard[]>([])
   const [searchedQuery, setSearchedQuery] = useState('')
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true)
-  const [selectedCard, setSelectedCard] = useState<RedisACard | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
   const [watchingMints, setWatchingMints] = useState<Set<string>>(new Set())
   const [totalTracked, setTotalTracked] = useState<number | null>(null)
@@ -363,7 +363,7 @@ export default function SearchPage() {
                 <div
                   key={card.token_mint}
                   className="bg-surface rounded-xl border border-white/5 overflow-hidden group cursor-pointer card-hover-lift"
-                  onClick={() => setSelectedCard(card)}
+                  onClick={() => openDealModal(card)}
                 >
                   <div className="relative w-full aspect-[5/7] bg-black/30 overflow-hidden">
                     <button
@@ -416,13 +416,6 @@ export default function SearchPage() {
         )}
       </div>
 
-      {/* Detail Panel */}
-      <CardDetailPanel 
-        card={selectedCard}
-        onClose={() => setSelectedCard(null)}
-        onAdd={() => selectedCard && toggleWatchlist(selectedCard.token_mint, { stopPropagation: () => {} } as any)}
-        isWatched={selectedCard ? watchingMints.has(selectedCard.token_mint) : false}
-      />
     </div>
   )
 }

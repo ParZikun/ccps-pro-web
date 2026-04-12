@@ -43,6 +43,7 @@ export interface RedisACard {
   alt_upper_bound: number | null;
   recent_sales: Array<{ date: string; price: number }>;
   cartel_avg: number;
+  cartel_avg_history: Array<{ date: string; price: number }>;
   timestamp: string;             // CDT ISO timestamp
 }
 
