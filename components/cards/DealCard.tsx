@@ -1,7 +1,8 @@
 'use client'
 
 import Image from 'next/image'
-import { TrendingDown, Croissant, Maximize2, BarChart3, DollarSign, Fingerprint } from 'lucide-react'
+import { Maximize2, ExternalLink, Croissant, Star } from 'lucide-react'
+import WatchlistStar from '@/components/ui/WatchlistStar'
 import { getTierColor, formatUsd, formatSol } from '@/lib/format'
 import type { Deal } from '@/types'
 import { useUI } from '@/context/UIContext'
@@ -117,11 +118,12 @@ export default function DealCard({ deal, priority = false }: DealCardProps) {
                Cartel Member
              </div>
            )}
-           {deal.owner_tag === 'Mfer' && (
-             <div className="px-2 py-0.5 rounded text-[8px] font-black bg-red-600 text-white shadow-xl uppercase border border-red-500/40">
-               Mfer
-             </div>
-           )}
+           <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10">
+            <WatchlistStar mint={deal.token_mint} iconSize={12} className="p-2" />
+            <div className={`px-2 py-0.5 rounded text-[8px] font-black ${tierColor.bg} ${tierColor.text} shadow-xl uppercase border ${tierColor.border} backdrop-blur-md`}>
+              {deal.tier}
+            </div>
+         </div>
         </div>
       </div>
 
@@ -139,7 +141,7 @@ export default function DealCard({ deal, priority = false }: DealCardProps) {
            </div>
            <div className="text-right">
               <p className="text-[8px] text-gray-500 uppercase font-black tracking-widest">Cartel Avg</p>
-              <p className="text-[11px] font-bold text-gray-400 font-mono">{formatUsd(deal.cartel_avg || deal.alt_value * 0.98)}</p>
+              <p className="text-[11px] font-bold text-gray-400 font-mono">{formatUsd(deal.cartel_avg || (deal.alt_value ?? 0) * 0.98)}</p>
            </div>
         </div>
 

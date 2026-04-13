@@ -8,6 +8,7 @@ import Image from 'next/image'
 import type { Holding } from '@/types'
 import { useWallet } from '@solana/wallet-adapter-react'
 import CopyButton from '@/components/ui/CopyButton'
+import WatchlistStar from '@/components/ui/WatchlistStar'
 
 export default function HoldingsPage() {
   const { openDealModal } = useUI()
@@ -236,7 +237,8 @@ function HoldingCard({ holding, onOpen }: { holding: any; onOpen: (h: any) => vo
             {holding.status}
           </span>
         </div>
-        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+        <div className="absolute top-2 right-2 flex flex-col gap-1 items-end z-10">
+          <WatchlistStar mint={holding.token_mint} iconSize={10} className="p-1.5" />
           <CopyButton text={holding.token_mint} className="bg-black/60 border border-white/10" iconSize={10} />
         </div>
         <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black to-transparent pointer-events-none opacity-50" />

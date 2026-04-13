@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { formatUsd, getConfidenceColor, truncate } from '@/lib/format'
 import Sparkline from '@/components/ui/Sparkline'
 import { useUI } from '@/context/UIContext'
+import WatchlistStar from '@/components/ui/WatchlistStar'
 import type { RedisACard } from '@/types'
 
 const GRADE_ORDER = ['10', '9.5', '9', '8.5', '8', '7.5', '7', '6.5', '6', '5.5', '5', '4.5', '4', '3.5', '3', '2.5', '2', '1.5', '1']
@@ -34,7 +35,6 @@ export default function SearchPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingFeatured, setIsLoadingFeatured] = useState(true)
   const [hasSearched, setHasSearched] = useState(false)
-  const [watchingMints, setWatchingMints] = useState<Set<string>>(new Set())
   const [totalTracked, setTotalTracked] = useState<number | null>(null)
   const [showFilters, setShowFilters] = useState(false)
 
@@ -74,26 +74,6 @@ export default function SearchPage() {
     }
     loadFeaturedCards()
   }, [])
-
-  const toggleWatchlist = async (mint: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const newSet = new Set(watchingMints)
-    const isCurrentlyWatching = newSet.has(mint)
-    
-    if (isCurrentlyWatching) newSet.delete(mint)
-    else newSet.add(mint)
-    setWatchingMints(newSet)
-
-    try {
-      if (!isCurrentlyWatching) {
-        await fetch(`/api/watchlist/test-wallet-123`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mint })
-        })
-      } else {
-        await fetch(`/api/watchlist/test-wallet-123/${mint}`, { method: 'DELETE' })
-      }
-    } catch {}
-  }
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -393,12 +373,11 @@ export default function SearchPage() {
                   onClick={() => openDealModal(card)}
                 >
                   <div className="relative w-full aspect-[5/7] bg-black/30 overflow-hidden">
-                    <button
-                      onClick={(e) => toggleWatchlist(card.token_mint, e)}
-                      className="absolute top-2 right-2 z-20 p-2 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 transition-colors backdrop-blur-sm"
-                    >
-                      <Star className={`w-3.5 h-3.5 ${watchingMints.has(card.token_mint) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-400 hover:text-white'}`} />
-                    </button>
+                    <WatchlistStar 
+                      mint={card.token_mint} 
+                      iconSize={14} 
+                      className="absolute top-2 right-2 z-20" 
+                    />
                     <Image
                       src={card.img_url || 'https://placehold.co/400x560/13111a/333?text=No+Image'}
                       alt={card.name}

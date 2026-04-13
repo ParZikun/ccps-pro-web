@@ -52,7 +52,7 @@ export default function DealsPage() {
         
         // Final safety filter: Remove Tier.NONE from Active Deals
         const validDeals = (data.deals || []).filter((d: Deal) => {
-          if (d.tier === Tier.NONE || d.tier === 'NONE') return false
+          if (d.tier === Tier.NONE) return false
           if (ownerGroup === 'CARTEL' && d.owner_tag !== 'Cartel Member') return false
           if (ownerGroup === 'MFERS' && d.owner_tag !== 'Mfer') return false
           return true
@@ -151,7 +151,7 @@ export default function DealsPage() {
       </div>
 
       {/* Deal Grid */}
-      <DealCardGrid deals={deals} loading={loading} error={error || undefined} onSelectDeal={openDealModal} />
+      <DealCardGrid deals={deals} loading={loading} error={error || undefined} />
     </div>
   )
 }

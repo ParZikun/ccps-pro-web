@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Drawer } from 'vaul'
 import { X, ExternalLink, Croissant, TrendingUp, DollarSign, Calculator, Info, Shield, BarChart3, Box, Target, AlertTriangle, Ghost } from 'lucide-react'
+import WatchlistStar from '@/components/ui/WatchlistStar'
 import { useUI } from '@/context/UIContext'
 import Image from 'next/image'
 import PriceChart from '@/components/charts/PriceChart'
@@ -162,12 +163,13 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
 
         <div className="space-y-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
-               <h2 className="text-xl font-black text-white leading-tight uppercase tracking-tight">{deal.name}</h2>
-               {deal.is_orphan && (
-                 <AlertTriangle className="w-5 h-5 text-yellow-500 animate-pulse" title="Missing Market Data" />
-               )}
-            </div>
+             <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-white leading-tight uppercase tracking-tight">{deal.name}</h2>
+                <WatchlistStar mint={deal.token_mint} iconSize={14} className="p-1.5" />
+                {deal.is_orphan && (
+                  <AlertTriangle className="w-5 h-5 text-yellow-500 animate-pulse" />
+                )}
+             </div>
             <div className="flex flex-wrap items-center gap-2 pt-1">
                <span className={`px-2 py-0.5 rounded-[4px] text-[9px] font-black border ${tierColor.bg} ${tierColor.text} ${tierColor.border} backdrop-blur-md shadow-lg`}>
                  {deal.tier}

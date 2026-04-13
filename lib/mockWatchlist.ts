@@ -29,6 +29,7 @@ const watchlistCards: RedisACard[] = [
       { date: '2026-03-25', price: 410 },
     ],
     cartel_avg: 433.75,
+    cartel_avg_history: [],
     timestamp: new Date().toISOString(),
   },
   {
@@ -58,6 +59,7 @@ const watchlistCards: RedisACard[] = [
       { date: '2026-03-27', price: 780 },
     ],
     cartel_avg: 803.75,
+    cartel_avg_history: [],
     timestamp: new Date().toISOString(),
   },
   {
@@ -87,6 +89,7 @@ const watchlistCards: RedisACard[] = [
       { date: '2026-03-26', price: 280 },
     ],
     cartel_avg: 297.50,
+    cartel_avg_history: [],
     timestamp: new Date().toISOString(),
   },
   {
@@ -116,6 +119,7 @@ const watchlistCards: RedisACard[] = [
       { date: '2026-03-25', price: 185 },
     ],
     cartel_avg: 175.00,
+    cartel_avg_history: [],
     timestamp: new Date().toISOString(),
   },
   {
@@ -145,6 +149,7 @@ const watchlistCards: RedisACard[] = [
       { date: '2026-03-27', price: 515 },
     ],
     cartel_avg: 530.00,
+    cartel_avg_history: [],
     timestamp: new Date().toISOString(),
   },
 ]

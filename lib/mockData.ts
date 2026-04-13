@@ -116,6 +116,7 @@ function generateRedisACard(index: number): RedisACard {
     alt_upper_bound: Math.round(altValue * 1.25),
     recent_sales: recentSales,
     cartel_avg: Math.round(cartelAvg * 100) / 100,
+    cartel_avg_history: recentSales.map(s => ({ ...s, price: s.price * 1.05 })),
     timestamp: new Date(Date.now() - index * 3600000).toISOString(),
   }
 }

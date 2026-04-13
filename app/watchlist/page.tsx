@@ -10,19 +10,25 @@ import Image from 'next/image'
 import Sparkline from '@/components/ui/Sparkline'
 
 export default function WatchlistPage() {
-  const { openDealModal } = useUI()
+  const { openDealModal, watchingMints, toggleWatchlist } = useUI()
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchFilter, setSearchFilter] = useState('')
 
+  // Sync watchlist data with global watchingMints state
+  // If a card is unstarred elsewhere, remove it from the display list
+  const activeWatchlist = useMemo(() => {
+    return watchlist.filter(item => watchingMints.has(item.token_mint))
+  }, [watchlist, watchingMints])
+
   const filteredList = useMemo(() => {
-    if (!searchFilter) return watchlist
+    if (!searchFilter) return activeWatchlist
     const q = searchFilter.toLowerCase()
-    return watchlist.filter((item: WatchlistItem) =>
+    return activeWatchlist.filter((item: WatchlistItem) =>
       item.name.toLowerCase().includes(q) ||
       item.grading_id.includes(q)
     )
-  }, [watchlist, searchFilter])
+  }, [activeWatchlist, searchFilter])
 
   // We hardcode a test wallet until Solana wallet integration is complete
   const wallet = 'test-wallet-123'
@@ -44,22 +50,10 @@ export default function WatchlistPage() {
     fetchWatchlist()
   }, [])
 
-  const removeFromWatchlist = async (mint: string) => {
-    // Optimistic UI update
-    setWatchlist(prev => prev.filter(item => item.token_mint !== mint))
-
-    // Backend call
-    try {
-      await fetch(`/api/watchlist/${wallet}/${mint}`, { method: 'DELETE' })
-    } catch (err) {
-      console.error('Failed to remove from watchlist', err)
-    }
-  }
-
-  // Calculate totals
-  const totalValue = watchlist.reduce((sum, item) => sum + (item.alt_value || 0), 0)
-  const avgConfidence = watchlist.length > 0
-    ? watchlist.reduce((sum, item) => sum + (item.alt_confidence || 0), 0) / watchlist.length
+  // Optimized totals based on active (un-deleted) items
+  const totalValue = activeWatchlist.reduce((sum, item) => sum + (item.alt_value || 0), 0)
+  const avgConfidence = activeWatchlist.length > 0
+    ? activeWatchlist.reduce((sum, item) => sum + (item.alt_confidence || 0), 0) / activeWatchlist.length
     : 0
 
   return (
@@ -209,7 +203,7 @@ export default function WatchlistPage() {
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                         <button
-                          onClick={(e) => { e.stopPropagation(); removeFromWatchlist(item.token_mint); }}
+                          onClick={(e) => { e.stopPropagation(); toggleWatchlist(item.token_mint); }}
                           className="p-1.5 rounded hover:bg-red-500/10 text-gray-500 hover:text-red-400 transition-colors"
                           title="Remove"
                         >

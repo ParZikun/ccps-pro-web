@@ -64,12 +64,12 @@ export default function PriceChart({
       crosshair: {
         vertLine: {
           color: 'rgba(255, 215, 0, 0.2)',
-          width: 0.5,
+          width: 1,
           style: 2,
         },
         horzLine: {
           color: 'rgba(255, 215, 0, 0.2)',
-          width: 0.5,
+          width: 1,
           style: 2,
         },
       },

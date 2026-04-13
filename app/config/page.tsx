@@ -209,13 +209,13 @@ export default function ConfigPage() {
                 label="De-dup Cooldown (Days)" 
                 sub="Suppress alerts for previously seen mints"
                 value={config.webhook.dedupCooldownDays}
-                onChange={(v) => setConfig({ ...config, webhook: { ...config.webhook, dedupCooldownDays: parseFloat(v) } })}
+                onChange={(v: string) => setConfig({ ...config, webhook: { ...config.webhook, dedupCooldownDays: parseFloat(v) } })}
               />
               <ConfigInput 
                 label="Price Threshold (%)" 
                 sub="Re-alert if price drops further than this %"
                 value={config.webhook.priceChangeThreshold * 100}
-                onChange={(v) => setConfig({ ...config, webhook: { ...config.webhook, priceChangeThreshold: parseFloat(v) / 100 } })}
+                onChange={(v: string) => setConfig({ ...config, webhook: { ...config.webhook, priceChangeThreshold: parseFloat(v) / 100 } })}
               />
             </div>
           </section>
@@ -235,21 +235,21 @@ export default function ConfigPage() {
                 label="Discord Role ID" 
                 sub="Role for @pings on Gold tiers"
                 value={config.discord.roleIdCc}
-                onChange={(v) => setConfig({ ...config, discord: { ...config.discord, roleIdCc: v } })}
+                onChange={(v: string) => setConfig({ ...config, discord: { ...config.discord, roleIdCc: v } })}
               />
               <ConfigInput 
                 label="Main Webhook URL" 
                 sub="Channel for universal alerts"
                 value={config.discord.webhookMain}
                 type="password"
-                onChange={(v) => setConfig({ ...config, discord: { ...config.discord, webhookMain: v } })}
+                onChange={(v: string) => setConfig({ ...config, discord: { ...config.discord, webhookMain: v } })}
               />
               <ConfigInput 
                 label="Alpha Calls Webhook" 
                 sub="Channel for Gold/Silver pings"
                 value={config.discord.webhookCalls}
                 type="password"
-                onChange={(v) => setConfig({ ...config, discord: { ...config.discord, webhookCalls: v } })}
+                onChange={(v: string) => setConfig({ ...config, discord: { ...config.discord, webhookCalls: v } })}
               />
             </div>
           </section>
@@ -266,13 +266,13 @@ export default function ConfigPage() {
                 label="Priority Fee (MicroLamps)" 
                 sub="Total compute unit price (lamports)"
                 value={config.buy.priorityFeeMicroLamports}
-                onChange={(v) => setConfig({ ...config, buy: { ...config.buy, priorityFeeMicroLamports: parseFloat(v) } })}
+                onChange={(v: string) => setConfig({ ...config, buy: { ...config.buy, priorityFeeMicroLamports: parseFloat(v) } })}
               />
               <ConfigInput 
                 label="Jito Bundle Tip (SOL)" 
                 sub="Tip for private bundle execution"
                 value={config.buy.jitoTipSol}
-                onChange={(v) => setConfig({ ...config, buy: { ...config.buy, jitoTipSol: parseFloat(v) } })}
+                onChange={(v: string) => setConfig({ ...config, buy: { ...config.buy, jitoTipSol: parseFloat(v) } })}
               />
               <div className="flex items-center justify-between pt-2">
                 <div className="space-y-0.5">
