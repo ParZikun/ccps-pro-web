@@ -6,12 +6,15 @@ import Image from 'next/image'
 import { formatUsd, truncate } from '@/lib/format'
 import { useUI } from '@/context/UIContext'
 import type { RedisACard } from '@/types'
+import Pagination from '@/components/ui/Pagination'
 
 export default function OrphansPage() {
   const { openDealModal } = useUI()
   const [orphans, setOrphans] = useState<RedisACard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 15
 
   const fetchOrphans = async () => {
     setIsLoading(true)
@@ -41,6 +44,18 @@ export default function OrphansPage() {
       c.token_mint?.includes(q)
     )
   }, [orphans, searchTerm])
+
+  const paginatedOrphans = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredOrphans.slice(start, start + itemsPerPage)
+  }, [filteredOrphans, currentPage])
+
+  const totalPages = Math.ceil(filteredOrphans.length / itemsPerPage)
+
+  // Reset to p1 on search
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm])
 
   return (
     <div className="space-y-6 page-transition">
@@ -115,7 +130,7 @@ export default function OrphansPage() {
                                   <td className="px-6 py-4"><div className="h-8 w-8 bg-white/5 rounded ml-auto" /></td>
                               </tr>
                           ))
-                      ) : filteredOrphans.length === 0 ? (
+                      ) : paginatedOrphans.length === 0 ? (
                           <tr>
                               <td colSpan={5} className="px-6 py-20 text-center">
                                   <Ghost className="w-12 h-12 text-gray-800 mx-auto mb-4" />
@@ -124,7 +139,7 @@ export default function OrphansPage() {
                               </td>
                           </tr>
                       ) : (
-                        filteredOrphans.map(card => (
+                        paginatedOrphans.map(card => (
                             <tr key={card.token_mint} className="group hover:bg-white/[0.03] transition-colors cursor-pointer" onClick={() => openDealModal(card)}>
                                 <td className="px-6 py-4">
                                     <div className="flex items-center gap-4">
@@ -186,8 +201,16 @@ export default function OrphansPage() {
           </div>
 
           <div className="p-4 border-t border-white/5 bg-white/[0.01] flex items-center justify-between text-[10px] text-gray-600 font-black uppercase tracking-widest">
-              <span>Operator Status: Standard Appraisal Mode</span>
-              <span>Loaded {filteredOrphans.length} Assets from Redis A</span>
+              <div className="flex items-center gap-4">
+                  <span>Operator Status: Standard Appraisal Mode</span>
+                  <div className="w-px h-3 bg-white/10" />
+                  <span>Showing {paginatedOrphans.length} of {filteredOrphans.length} Assets</span>
+              </div>
+              <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
           </div>
       </div>
     </div>

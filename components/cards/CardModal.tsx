@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
 import { Drawer } from 'vaul'
-import { X, ExternalLink, Croissant, TrendingUp, DollarSign, Calculator, Info, Shield, BarChart3, Box, Target, AlertTriangle } from 'lucide-react'
+import { X, ExternalLink, Croissant, TrendingUp, DollarSign, Calculator, Info, Shield, BarChart3, Box, Target, AlertTriangle, Ghost } from 'lucide-react'
 import { useUI } from '@/context/UIContext'
 import Image from 'next/image'
 import PriceChart from '@/components/charts/PriceChart'
@@ -212,7 +212,8 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
              </div>
           </div>
 
-          <div className="pt-4 border-t border-white/5 space-y-3">
+          {/* Sidebar Tactical Blocks */}
+          <div className="pt-4 border-t border-white/5 space-y-4">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-gray-400 font-black uppercase tracking-widest opacity-60">Token Mint Address</label>
               <div className="flex items-center gap-2 bg-black/40 p-2 rounded border border-white/5 group">
@@ -255,6 +256,18 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
               >
                 <Info className="w-3.5 h-3.5" /> CC
               </a>
+            </div>
+
+            {/* Tactical Action: Snipe Asset */}
+            <div className="pt-2 border-t border-white/5 mt-4">
+              <button 
+                disabled={isSniping || !isListed} 
+                onClick={handleSnipe} 
+                className="w-full py-4 rounded-xl bg-accent-gold hover:bg-accent-gold/90 disabled:bg-gray-800 disabled:text-gray-600 text-black text-xs font-black flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(255,215,0,0.1)] group active:scale-[0.98] uppercase tracking-widest"
+              >
+                {isSniping ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <Croissant className="w-4 h-4 fill-current rotate-12" />}
+                {isSniping ? 'Sniping...' : (isListed ? 'SNIPE ASSET' : 'NOT LISTED')}
+              </button>
             </div>
           </div>
         </div>
@@ -322,10 +335,12 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
                 <Calculator className="w-3.5 h-3.5 text-accent-gold" /> Transaction Forecast
              </h3>
-             <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-3">
-                <FeeRow label="ME Platform Fee (2%)" sol={`~${((deal.listing_price_sol || 0) * 0.02).toFixed(3)}`} usd={formatUsd(meFeeUsd)} />
-                <FeeRow label="Creator Royalties" sol={`~${((deal.listing_price_sol || 0) * 0.05).toFixed(3)}`} usd={formatUsd(royaltyUsd)} />
-                <FeeRow label="Network Prio/Tip" sol={`${tipSol.toFixed(3)}`} usd={`~$${(tipSol * 150).toFixed(2)}`} />
+             <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-3 h-[180px] flex flex-col justify-between">
+                <div className="space-y-3">
+                   <FeeRow label="ME Platform Fee (2%)" sol={`~${((deal.listing_price_sol || 0) * 0.02).toFixed(3)}`} usd={formatUsd(meFeeUsd)} />
+                   <FeeRow label="Creator Royalties" sol={`~${((deal.listing_price_sol || 0) * 0.05).toFixed(3)}`} usd={formatUsd(royaltyUsd)} />
+                   <FeeRow label="Network Prio/Tip" sol={`${tipSol.toFixed(3)}`} usd={`~$${(tipSol * 150).toFixed(2)}`} />
+                </div>
                 <div className="pt-2 border-t border-white/5 flex items-center justify-between">
                    <span className="text-[9px] font-black text-white uppercase">Total Adj. Price</span>
                    <span className="text-xs font-black text-accent-gold">{formatUsd(deal.listing_price_usd + totalFeesUsd)}</span>
@@ -337,7 +352,7 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
                 <Shield className="w-3.5 h-3.5 text-purple-400" /> Card Buy Override
              </h3>
-             <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-4 flex flex-col justify-center gap-3">
+             <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-4 flex flex-col justify-between h-[180px]">
                 <div className="flex items-center gap-2">
                    <div className="flex-1">
                       <label className="text-[8px] text-gray-500 font-bold uppercase block mb-1">Manual Buy Limit (USD)</label>
@@ -377,7 +392,7 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
               </span>
             )}
           </div>
-          <div className="bg-black/40 rounded-xl border border-white/5 p-2 min-h-[200px] flex items-center justify-center">
+          <div className="bg-black/40 rounded-xl border border-white/5 p-2 h-[320px] flex items-center justify-center">
             {deal.is_orphan ? (
               <div className="text-center space-y-2 opacity-40">
                 <Ghost className="w-8 h-8 mx-auto text-gray-600" />
@@ -385,8 +400,9 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
               </div>
             ) : (
               <PriceChart 
-                data={chartData} 
-                cartelHistory={deal.cartel_avg_history}
+                salesData={deal.recent_sales || []} 
+                altHistory={deal.alt_value_history || []}
+                cartelHistory={deal.cartel_avg_history || []}
                 cartelAvg={deal.cartel_avg} 
                 currentAltPrice={deal.alt_value}
                 currentPrice={isListed ? deal.listing_price_usd : 0}
@@ -397,17 +413,6 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
           </div>
         </div>
 
-        {/* Actions Bar */}
-        <div className="pt-2">
-          <button 
-            disabled={isSniping || !isListed} 
-            onClick={handleSnipe} 
-            className="w-full py-4 rounded-xl bg-accent-gold hover:bg-accent-gold/90 disabled:bg-gray-800 disabled:text-gray-600 text-black text-xs font-black flex items-center justify-center gap-2 transition-all shadow-[0_4px_20px_rgba(255,215,0,0.1)] group active:scale-[0.98] uppercase tracking-widest"
-          >
-            {isSniping ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" /> : <Croissant className="w-4 h-4 fill-current rotate-12" />}
-            {isSniping ? 'Processing Neural Snipe...' : (isListed ? 'SNIPE ASSET' : 'ASSET NOT LISTED')}
-          </button>
-        </div>
       </div>
     </div>
   )

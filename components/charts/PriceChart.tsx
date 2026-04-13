@@ -1,11 +1,12 @@
 'use client'
 
 import { useRef, useEffect } from 'react'
-import { createChart, ColorType, AreaSeries, LineSeries } from 'lightweight-charts'
+import { createChart, ColorType, LineSeries } from 'lightweight-charts'
 import type { IChartApi } from 'lightweight-charts'
 
 interface PriceChartProps {
-  data: Array<{ date: string; price: number }>
+  salesData: Array<{ date: string; price: number }>
+  altHistory?: Array<{ date: string; price: number }>
   cartelHistory?: Array<{ date: string; price: number }>
   cartelAvg?: number
   currentPrice?: number
@@ -14,7 +15,16 @@ interface PriceChartProps {
   color?: string
 }
 
-export default function PriceChart({ data, cartelHistory, cartelAvg, currentPrice, currentAltPrice, manualBid, color = '#3b82f6' }: PriceChartProps) {
+export default function PriceChart({ 
+  salesData, 
+  altHistory, 
+  cartelHistory, 
+  cartelAvg, 
+  currentPrice, 
+  currentAltPrice, 
+  manualBid, 
+  color = '#3b82f6' 
+}: PriceChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<IChartApi | null>(null)
 
@@ -24,7 +34,7 @@ export default function PriceChart({ data, cartelHistory, cartelAvg, currentPric
     const handleResize = () => {
       chartRef.current?.applyOptions({ 
         width: chartContainerRef.current?.clientWidth,
-        height: 240 
+        height: 280 
       })
     }
 
@@ -33,17 +43,18 @@ export default function PriceChart({ data, cartelHistory, cartelAvg, currentPric
         background: { type: ColorType.Solid, color: 'transparent' },
         textColor: '#6b7280',
         fontSize: 10,
-        fontFamily: 'IBM Plex Mono, monospace',
+        fontFamily: 'JetBrains Mono, monospace',
       },
       grid: {
-        vertLines: { visible: false },
+        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
         horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
       },
       width: chartContainerRef.current.clientWidth,
-      height: 240,
+      height: 280,
       timeScale: {
         borderColor: 'rgba(255, 255, 255, 0.05)',
         timeVisible: true,
+        secondsVisible: false,
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.05)',
@@ -66,137 +77,117 @@ export default function PriceChart({ data, cartelHistory, cartelAvg, currentPric
       handleScale: true,
     })
 
-    // 1. Primary: Alt Value Area Series
-    const areaSeries = chart.addSeries(AreaSeries, {
-      lineColor: color,
-      topColor: `${color}33`,
-      bottomColor: `${color}00`,
-      lineWidth: 2,
-      priceFormat: { type: 'price', precision: 0, minMove: 1 },
-    })
-
-    // Sanitize and sort data: Filter out entries with invalid dates to prevent chart breakage
-    const validData = data.filter(item => {
-      if (!item.date) return false
-      const d = new Date(item.date)
-      return !isNaN(d.getTime())
-    })
-    
-    const sortedData = [...validData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    
-    // Deduplicate by timestamp (Keep the latest price if multiple sales on same date/time)
-    const uniqueDataMap = new Map<number, number>()
-    sortedData.forEach(item => {
-      const time = Math.floor(new Date(item.date).getTime() / 1000)
-      uniqueDataMap.set(time, item.price)
-    })
-
-    const chartData = Array.from(uniqueDataMap.entries()).map(([time, value]) => ({
-      time: time as any,
-      value
-    })).sort((a, b) => (a.time as number) - (b.time as number))
-
-    if (chartData.length > 0) {
-      areaSeries.setData(chartData)
-    }
-
-    // 1.5 Secondary: Cartel Trend (Yellow Line)
-    if (cartelHistory && cartelHistory.length > 0) {
-      const lineSeries = chart.addSeries(LineSeries, {
-        color: '#fbbf24',
-        lineWidth: 2,
-        priceFormat: { type: 'price', precision: 0, minMove: 1 },
-      })
-      
-      const vHistory = cartelHistory.filter(item => {
-        if (!item.date) return false
-        const d = new Date(item.date)
-        return !isNaN(d.getTime())
-      })
-      
-      const sortedHistory = [...vHistory].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      const uniqueHistoryMap = new Map<number, number>()
-      sortedHistory.forEach(item => {
+    const processData = (raw: any[]) => {
+      if (!raw || !Array.isArray(raw)) return []
+      const valid = raw.filter(item => item.date && !isNaN(new Date(item.date).getTime()))
+      const sorted = [...valid].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      const uniqueMap = new Map<number, number>()
+      sorted.forEach(item => {
         const time = Math.floor(new Date(item.date).getTime() / 1000)
-        uniqueHistoryMap.set(time, item.price)
+        uniqueMap.set(time, item.price)
       })
-      
-      const lineData = Array.from(uniqueHistoryMap.entries()).map(([time, value]) => ({
+      return Array.from(uniqueMap.entries()).map(([time, value]) => ({
         time: time as any,
         value
       })).sort((a, b) => (a.time as number) - (b.time as number))
-      
-      lineSeries.setData(lineData)
     }
 
-    // 2. Cartel Average Baseline
-    if (cartelAvg) {
-      areaSeries.createPriceLine({
-        price: cartelAvg,
-        color: '#fbbf24',
-        lineWidth: 1,
-        lineStyle: 1, // Dotted
-        axisLabelVisible: true,
-        title: 'CARTEL AVG',
-      })
+    // 1. Base Series: Sale History (White Line)
+    const salesSeries = chart.addSeries(LineSeries, {
+      color: 'rgba(255, 255, 255, 0.3)',
+      lineWidth: 1,
+      priceFormat: { type: 'price', precision: 0, minMove: 1 },
+      lastValueVisible: false,
+    })
+    const sData = processData(salesData)
+    if (sData.length > 0) salesSeries.setData(sData)
+
+    // 2. Alt Valuation History (Blue Line)
+    const altSeries = chart.addSeries(LineSeries, {
+      color: '#3b82f6',
+      lineWidth: 2,
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+      lastValueVisible: false,
+    })
+    if (altHistory && altHistory.length > 0) {
+      const aHistory = processData(altHistory)
+      if (aHistory.length > 0) altSeries.setData(aHistory)
     }
 
-    // 2.5 Alt Valuation Baseline (Matching blue series)
-    if (currentAltPrice) {
-      areaSeries.createPriceLine({
-        price: currentAltPrice,
-        color: '#3b82f6',
-        lineWidth: 1,
-        lineStyle: 1, // Dotted
-        axisLabelVisible: true,
-        title: 'ALT RESEARCH',
-      })
+    // 3. Cartel Trend History (Yellow Line)
+    const cartelSeries = chart.addSeries(LineSeries, {
+      color: '#fbbf24',
+      lineWidth: 2,
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
+      lastValueVisible: false,
+    })
+    if (cartelHistory && cartelHistory.length > 0) {
+      const cHistory = processData(cartelHistory)
+      if (cHistory.length > 0) cartelSeries.setData(cHistory)
     }
 
-    // 3. Current Listing Price (Pulsing Red/Green Line)
+    // Reference Line: Current Listing Price (Solid Red)
     if (currentPrice && currentPrice > 0) {
-      areaSeries.createPriceLine({
+      salesSeries.createPriceLine({
         price: currentPrice,
         color: '#ef4444',
         lineWidth: 2,
-        lineStyle: 0, // Solid
-        axisLabelVisible: true,
-        title: 'LISTED PRICE',
+        lineStyle: 0,
+        axisLabelVisible: false,
       })
     }
 
-    // 4. Manual Bid Override (Purple)
+    // Reference Line: Manual Bid Override (Solid Purple)
     if (manualBid) {
-      areaSeries.createPriceLine({
+      salesSeries.createPriceLine({
         price: manualBid,
         color: '#a855f7',
-        lineWidth: 1,
-        lineStyle: 2, // Dashed
-        axisLabelVisible: true,
-        title: 'SAFE LIMIT',
+        lineWidth: 2,
+        lineStyle: 0,
+        axisLabelVisible: false,
       })
     }
 
     chart.timeScale().fitContent()
-
     chartRef.current = chart
-    window.addEventListener('resize', handleResize)
 
+    window.addEventListener('resize', handleResize)
     return () => {
       window.removeEventListener('resize', handleResize)
       chart.remove()
     }
-  }, [data, cartelHistory, cartelAvg, currentPrice, manualBid, color])
+  }, [salesData, altHistory, cartelHistory, cartelAvg, currentPrice, currentAltPrice, manualBid, color])
 
   return (
-    <div className="w-full relative group">
-      <div className="absolute top-2 left-6 z-10 flex gap-4 text-[9px] font-black uppercase tracking-widest">
-        <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /> <span className="text-gray-400">Alt Research</span></div>
-        {(cartelAvg || cartelHistory) && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-yellow-400" /> <span className="text-gray-400">Cartel Trend</span></div>}
-        {manualBid && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> <span className="text-gray-400">Manual Bid</span></div>}
+    <div className="relative w-full h-full flex flex-col">
+      <div className="absolute top-2 left-4 z-10 flex flex-wrap gap-4 text-[9px] font-black uppercase tracking-tighter bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/5">
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-white/40" /> 
+          <span className="text-gray-400">Sale History</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> 
+          <span className="text-blue-400">Alt Value: ${currentAltPrice?.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]" /> 
+          <span className="text-yellow-500">Cartel Trend: ${cartelAvg?.toFixed(2)}</span>
+        </div>
+        {currentPrice && currentPrice > 0 && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500" /> 
+            <span className="text-red-400">Listed: ${currentPrice.toFixed(2)}</span>
+          </div>
+        )}
+        {manualBid && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" /> 
+            <span className="text-purple-400">Safe Limit: ${manualBid.toFixed(2)}</span>
+          </div>
+        )}
       </div>
-      <div ref={chartContainerRef} className="w-full" />
-      {data.length === 0 && (
+      <div ref={chartContainerRef} className="w-full mt-6" />
+      {(!salesData || salesData.length === 0) && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] rounded-lg border border-white/5">
           <p className="text-xs text-gray-500 font-mono italic">No price history available</p>
         </div>

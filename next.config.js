@@ -23,6 +23,7 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.mypinata.cloud' },
       { protocol: 'https', hostname: 'ipfs.io' },
       { protocol: 'https', hostname: '*.ipfs.nftstorage.link' },
+      { protocol: 'https', hostname: 'ccg-imaging-cgc-tradingcards-production.s3.amazonaws.com' },
       { protocol: 'https', hostname: '*.cloudfront.net' },
     ],
     dangerouslyAllowSVG: true,
