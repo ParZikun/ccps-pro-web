@@ -79,22 +79,24 @@ export default function PriceChart({
 
     const processData = (raw: any[]) => {
       if (!raw || !Array.isArray(raw)) return []
-      const valid = raw.filter(item => item.date && !isNaN(new Date(item.date).getTime()))
+      
+      const valid = raw.filter(item => item.date && item.price !== undefined)
       const sorted = [...valid].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
       const uniqueMap = new Map<number, number>()
       sorted.forEach(item => {
         const time = Math.floor(new Date(item.date).getTime() / 1000)
         uniqueMap.set(time, item.price)
       })
-      return Array.from(uniqueMap.entries()).map(([time, value]) => ({
-        time: time as any,
-        value
-      })).sort((a, b) => (a.time as number) - (b.time as number))
+
+      return Array.from(uniqueMap.entries())
+        .map(([time, value]) => ({ time: time as any, value }))
+        .sort((a, b) => (a.time as number) - (b.time as number))
     }
 
-    // 1. Base Series: Sale History (White Line)
+    // 1. Base Series: Sale History (White Dots/Line)
     const salesSeries = chart.addSeries(LineSeries, {
-      color: 'rgba(255, 255, 255, 0.3)',
+      color: '#ffffff',
       lineWidth: 1,
       priceFormat: { type: 'price', precision: 0, minMove: 1 },
       lastValueVisible: false,
@@ -102,16 +104,16 @@ export default function PriceChart({
     const sData = processData(salesData)
     if (sData.length > 0) salesSeries.setData(sData)
 
-    // 2. Alt Valuation History (Blue Line)
-    const altSeries = chart.addSeries(LineSeries, {
-      color: '#3b82f6',
-      lineWidth: 2,
-      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
-      lastValueVisible: false,
-    })
-    if (altHistory && altHistory.length > 0) {
-      const aHistory = processData(altHistory)
-      if (aHistory.length > 0) altSeries.setData(aHistory)
+    // 2. Alt Valuation: Horizontal Blue Line (Target Reference)
+    if (currentAltPrice && currentAltPrice > 0) {
+      salesSeries.createPriceLine({
+        price: currentAltPrice,
+        color: '#3b82f6',
+        lineWidth: 2,
+        lineStyle: 0, // Solid line
+        axisLabelVisible: false,
+        title: '',
+      })
     }
 
     // 3. Cartel Trend History (Yellow Line)
@@ -162,12 +164,12 @@ export default function PriceChart({
     <div className="relative w-full h-full flex flex-col">
       <div className="absolute top-2 left-4 z-10 flex flex-wrap gap-4 text-[9px] font-black uppercase tracking-tighter bg-black/40 backdrop-blur-md p-2 rounded-lg border border-white/5">
         <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-white/40" /> 
-          <span className="text-gray-400">Sale History</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-white" /> 
+          <span className="text-white opacity-80">Sale History</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.5)]" /> 
-          <span className="text-blue-400">Alt Value: ${currentAltPrice?.toFixed(2)}</span>
+          <span className="text-blue-400">Alt Valuation: ${currentAltPrice?.toFixed(2)}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-yellow-500 shadow-[0_0_8px_rgba(251,191,36,0.5)]" /> 

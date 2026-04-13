@@ -335,15 +335,15 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
                 <Calculator className="w-3.5 h-3.5 text-accent-gold" /> Transaction Forecast
              </h3>
-             <div className="bg-white/5 border border-white/5 rounded-xl p-4 space-y-3 h-[180px] flex flex-col justify-between">
-                <div className="space-y-3">
+             <div className="bg-white/5 border border-white/5 rounded-xl p-5 space-y-5 h-[190px] flex flex-col justify-between">
+                <div className="space-y-4">
                    <FeeRow label="ME Platform Fee (2%)" sol={`~${((deal.listing_price_sol || 0) * 0.02).toFixed(3)}`} usd={formatUsd(meFeeUsd)} />
                    <FeeRow label="Creator Royalties" sol={`~${((deal.listing_price_sol || 0) * 0.05).toFixed(3)}`} usd={formatUsd(royaltyUsd)} />
                    <FeeRow label="Network Prio/Tip" sol={`${tipSol.toFixed(3)}`} usd={`~$${(tipSol * 150).toFixed(2)}`} />
                 </div>
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                   <span className="text-[9px] font-black text-white uppercase">Total Adj. Price</span>
-                   <span className="text-xs font-black text-accent-gold">{formatUsd(deal.listing_price_usd + totalFeesUsd)}</span>
+                <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                   <span className="text-[10px] font-black text-white uppercase tracking-tighter">Total Adj. Price</span>
+                   <span className="text-sm font-black text-accent-gold tabular-nums">{formatUsd(deal.listing_price_usd + totalFeesUsd)}</span>
                 </div>
              </div>
           </div>
@@ -352,27 +352,27 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
              <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 opacity-80">
                 <Shield className="w-3.5 h-3.5 text-purple-400" /> Card Buy Override
              </h3>
-             <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-4 flex flex-col justify-between h-[180px]">
-                <div className="flex items-center gap-2">
+             <div className="bg-purple-500/5 border border-purple-500/10 rounded-xl p-5 flex flex-col justify-between h-[190px]">
+                <div className="flex items-center gap-3">
                    <div className="flex-1">
-                      <label className="text-[8px] text-gray-500 font-bold uppercase block mb-1">Manual Buy Limit (USD)</label>
+                      <label className="text-[9px] text-gray-500 font-black uppercase block mb-2 tracking-tighter">Manual Buy Limit (USD)</label>
                       <input 
                         type="number" 
                         value={manualBid} 
                         onChange={(e) => setManualBid(e.target.value)}
                         placeholder="Set custom limit..."
-                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-xs font-black text-white focus:outline-none focus:border-purple-500 transition-colors"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2.5 text-xs font-black text-white focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-gray-700"
                       />
                    </div>
                    <button 
                     onClick={handleSaveBid}
                     disabled={isSavingBid}
-                    className="self-end px-3 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-lg transition-all"
+                    className="self-end p-2.5 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white rounded-lg shadow-lg shadow-purple-500/20 transition-all active:scale-95"
                    >
-                     {isSavingBid ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Croissant className="w-4 h-4 fill-current rotate-12" />}
+                     {isSavingBid ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Croissant className="w-5 h-5 fill-current rotate-12" />}
                    </button>
                 </div>
-                <p className="text-[10px] text-gray-500 font-bold italic leading-tight">
+                <p className="text-[10px] text-gray-500 font-bold italic leading-relaxed opacity-60">
                   IF SET: The sniper will ignore Alt values and only execute at or below this limit.
                   IF EMPTY: Defaulting to Safe Max Bid ({formatUsd(buybackValue)}).
                 </p>
@@ -401,7 +401,7 @@ function ModalContent({ deal, isMobile }: { deal: any, isMobile: boolean }) {
             ) : (
               <PriceChart 
                 salesData={deal.recent_sales || []} 
-                altHistory={deal.alt_value_history || []}
+                altHistory={deal.alt_history || []}
                 cartelHistory={deal.cartel_avg_history || []}
                 cartelAvg={deal.cartel_avg} 
                 currentAltPrice={deal.alt_value}
